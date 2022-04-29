@@ -1,7 +1,5 @@
 ## Types generator
 
-[![Build Status](https://drone-ci.aidbox.app/api/badges/Aidbox/types-generator/status.svg?ref=refs/heads/main)](https://drone-ci.aidbox.app/Aidbox/types-generator)
-
 CLI tools for generation typescript types from Aidbox zen schemas
 
 ## Requirements
@@ -13,7 +11,7 @@ CLI tools for generation typescript types from Aidbox zen schemas
 ## Installation
 
 ```
-$ git clone git@github.com:Aidbox/types-generator.git
+$ git clone git@github.com:octoshikari/aidbox-types-generator.git types-generator
 $ cd types-generator
 $ npm install
 ```
