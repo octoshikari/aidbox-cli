@@ -164,18 +164,17 @@ jobs:
           sha256sum aidbox-types-generator-macos-arm64.tar.gz >> checksums.md
 
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: marvinpinto/action-automatic-releases@latest
         with:
-          prerelease: true
-          body_path: checksums.md
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
           files: |
             LICENSE
+            checksums.md
             aidbox-types-generator-windows-x64.tar.gz
             aidbox-types-generator-linux-x64.tar.gz
             aidbox-types-generator-macos-x64.tar.gz
             aidbox-types-generator-macos-arm64.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   notify:
     needs: [ create-release ]
     runs-on: ubuntu-latest
