@@ -2,6 +2,7 @@ import fs from "fs";
 import { Cache, Types } from "./types";
 import { keyRequired } from "./helpers";
 import prettier from "prettier";
+import { writerLog } from "./logger";
 
 export const writeNestedType = (defs: Types = {}, typeName: string) => {
   let type = "";
@@ -88,6 +89,7 @@ export const writer = (
       types += `}\n\n`;
     }
   }
+  writerLog("Write file by path %s", output);
   /* eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access */
   fs.writeFileSync(output, prettier.format(types, { parser: "typescript" }));
 };

@@ -469,8 +469,16 @@ export const parseSymbol = async (
   box: Box,
   cache: Cache,
   symbol: string,
+  includeProfile: boolean,
 ): Promise<TypesElement | undefined> => {
   const definition = await getSymbol(box, cache, symbol);
+
+  if (
+    definition["zen/tags"].includes("zen.fhir/profile-schema") &&
+    !includeProfile
+  ) {
+    return;
+  }
 
   if (definition["zen/tags"].includes("zen.fhir/search")) {
     return;
@@ -641,7 +649,11 @@ export const parseSymbol = async (
   }
   return;
 };
-export const generateTypes = async (box: Box, cache: Cache): Promise<Types> => {
+export const generateTypes = async (
+  box: Box,
+  cache: Cache,
+  includeProfile: boolean,
+): Promise<Types> => {
   readerLog("Start load symbols...");
   const symbols = await box.loadAllSymbols(
     excludeNamespaces,
@@ -658,11 +670,10 @@ export const generateTypes = async (box: Box, cache: Cache): Promise<Types> => {
   );
 
   readerLog("Start process symbols...");
-  console.log("\n");
   progress.start(symbols.length, 0);
 
   for (const [idx, symbol] of Object.entries(symbols)) {
-    const definition = await parseSymbol(box, cache, symbol);
+    const definition = await parseSymbol(box, cache, symbol, includeProfile);
 
     if (definition) {
       result.push(definition);
@@ -671,7 +682,6 @@ export const generateTypes = async (box: Box, cache: Cache): Promise<Types> => {
   }
 
   progress.stop();
-  console.log("\n");
 
   const finalResult = result.reduce(
     (accumulator: Types, current: TypesElement) => {

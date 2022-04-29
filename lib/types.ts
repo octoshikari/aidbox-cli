@@ -135,9 +135,10 @@ export type CLIGenerateTypes = {
   client: string;
   secret: string;
   cachePath?: string;
-  cache?: boolean;
-  fhirReference?: boolean;
+  cache: boolean;
+  fhirReference: boolean;
   output: string;
+  includeProfile: boolean;
 };
 
 export type ConceptEntry = {

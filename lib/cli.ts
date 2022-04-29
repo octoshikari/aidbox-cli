@@ -42,9 +42,7 @@ export const generate = async (params: CLIGenerateTypes) => {
   );
   cliLog("Start...");
 
-  const resultTypes = await generateTypes(box, cache);
-
-  cliLog("Write type on disk...");
+  const resultTypes = await generateTypes(box, cache, params.includeProfile);
 
   writer(resultTypes, cache, params.fhirReference, path.resolve(params.output));
   cliLog("Finish...");

@@ -1,5 +1,5 @@
 {
-  "name": "@octoshikari/aidbox-types-generator",
+  "name": "@octoshikari-oss/aidbox-types-generator",
   "version": "1.0.0",
   "description": "Types generator for Aidbox resources",
   "scripts": {
@@ -9,16 +9,32 @@
     "lint": "eslint . --ext .js,.ts",
     "lint:fix": "eslint . --ext .js,.ts --fix",
     "test": "uvu -r tsm tests",
-    "test:watch": "watchlist lib tests -- npm test"
+    "build": "tsc",
+    "test:watch": "watchlist lib tests -- npm test",
+    "package:linux": "pkg . --no-bytecode --targets node14-linux-x64 --out-path binary/linux",
+    "package:macos": "pkg .  --no-bytecode --targets node14-macos-x64,node14-macos-arm64 --out-path binary/macos",
+    "package:win": "pkg .  --no-bytecode --targets node14-win-x64 --out-path binary/win"
   },
   "bin": {
-    "aidbox-types-generator": "./bin/aidbox-types-generator.js"
+    "aidbox-types-generator": "./build/bin/aidbox-types-generator.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "/build"
+  ],
+  "pkg": {
+    "scripts": "build/**/*.js"
   },
   "keywords": [
     "fhir",
     "aidbox"
   ],
+  "author": "Alex Streltsov <funyloony@gmail.com>",
   "license": "MIT",
+  "homepage": "https://github.com/octoshikari/aidbox-types-generator#readme",
+  "bugs": "https://github.com/octoshikari/aidbox-types-generatorissues",
   "dependencies": {
     "axios": "^0.26.1",
     "cli-progress": "^3.10.0",
@@ -26,10 +42,6 @@
     "prettier": "2.6.2",
     "yargs": "^17.4.1"
   },
-  "bugs": {
-    "url": "https://github.com/Aidbox/types-generator/issues"
-  },
-  "homepage": "https://github.com/Aidbox/types-generator#readme",
   "devDependencies": {
     "@types/cli-progress": "^3.9.2",
     "@types/debug": "^4.1.7",
@@ -44,6 +56,7 @@
     "eslint-plugin-prettier": "^4.0.0",
     "fast-check": "^2.24.0",
     "nodemon": "2.0.15",
+    "pkg": "^5.6.0",
     "ts-node": "^10.7.0",
     "tsm": "^2.2.1",
     "typescript": "^4.6.3",

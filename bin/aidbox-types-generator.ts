@@ -2,15 +2,14 @@
 
 import yargs from "yargs/yargs";
 import { hideBin } from "yargs/helpers";
-import { clearCache } from "../lib/cli";
-import { generate } from "./../lib/cli";
+import { clearCache, generate } from "../lib/cli";
 
 (async () =>
   await yargs(hideBin(process.argv))
-    .usage("Usage: $0 <command> [options]")
+    .usage(`Usage: $0 <command> [options]`)
     .command(
       "clear-cache",
-      "Clear cache",
+      "Clear cache folder",
       (yargs) => {
         return yargs.option("path", {
           alias: "p",
@@ -25,7 +24,7 @@ import { generate } from "./../lib/cli";
     )
     .command(
       "generate",
-      "Generate type",
+      "Generate types",
       (yargs) => {
         return yargs
           .option("box", {
@@ -48,7 +47,7 @@ import { generate } from "./../lib/cli";
           })
           .option("cachePath", {
             type: "string",
-            description: "Cache path",
+            description: "Cache folder path",
           })
           .option("cache", {
             type: "boolean",
@@ -57,7 +56,14 @@ import { generate } from "./../lib/cli";
           })
           .option("fhirReference", {
             type: "boolean",
+            default: false,
             description: "Use fhir reference type",
+          })
+          .option("includeProfile", {
+            alias: "p",
+            type: "boolean",
+            default: false,
+            description: "Include all profiles into result types",
           })
           .option("output", {
             alias: "o",

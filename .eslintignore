@@ -1,2 +1,4 @@
 node_modules
 .eslintrc.js
+build
+aidbox-generated-types.ts
