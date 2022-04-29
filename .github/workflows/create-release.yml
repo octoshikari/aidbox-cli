@@ -58,7 +58,7 @@ jobs:
 
       - name: Create tarball
         run: |
-          mv binary/linux/aidbox-types-generator-x64 aidbox-types-generator
+          mv binary/linux/aidbox-types-generator aidbox-types-generator
           tar -cvzf aidbox-types-generator-linux-x64.tar.gz aidbox-types-generator
 
 
@@ -87,7 +87,7 @@ jobs:
 
       - name: Create tarball
         run: |
-          mv binary/win/aidbox-types-generator-x64 aidbox-types-generator
+          mv binary/win/aidbox-types-generator aidbox-types-generator
           tar -cvzf aidbox-types-generator-windows-x64.tar.gz aidbox-types-generator
 
       - name: Upload tarball artifact
