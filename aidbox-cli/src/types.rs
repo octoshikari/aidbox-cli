@@ -9,12 +9,13 @@ pub fn types_command() -> Command<'static> {
         .subcommand(
             Command::new("generate")
                 .about("Generate types from zen schema")
+                .arg_required_else_help(true)
                 .args(push_generate_args()),
         )
         .subcommand(
             Command::new("clear-cache")
                 .about("Clear folder contains cache")
-                .allow_missing_positional(true)
+                .arg_required_else_help(true)
                 .args(vec![arg!(--folder <PATH> "folder contained cache")]),
         );
 }
@@ -37,7 +38,7 @@ fn push_generate_args() -> Vec<clap::Arg<'static>> {
     vec![arg!(-m --message <MESSAGE>).required(false)]
 }
 
-pub fn clear_cache(sub_matches: &ArgMatches) -> () {
+fn clear_cache(sub_matches: &ArgMatches) -> () {
     match fs::remove_dir_all(
         sub_matches
             .value_of("folder")
