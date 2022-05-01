@@ -11,8 +11,8 @@ CLI tools for generation typescript types from Aidbox zen schemas
 ## Installation
 
 ```
-$ git clone git@github.com:octoshikari/aidbox-types-generator.git types-generator
-$ cd types-generator
+$ git clone git@github.com:octoshikari/aidbox-cli.git aidbox-cli
+$ cd aidbox-cli
 $ npm install
 ```
 

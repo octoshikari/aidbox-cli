@@ -26,7 +26,7 @@ fn main() {
 
             match matches.subcommand() {
                 Some(("devbox", sub_matches)) => devbox::devbox_match(sub_matches).await,
-                Some(("types", sub_matches)) => types::types_match(sub_matches),
+                Some(("types", sub_matches)) => types::types_match(sub_matches).await,
                 Some((ext, sub_matches)) => {
                     let args = sub_matches
                         .values_of_os("")
