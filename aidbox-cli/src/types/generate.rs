@@ -3,14 +3,14 @@ use crate::types::r#box::{create_box, ConnectionConfig};
 use clap::ArgMatches;
 use exitcode::OK;
 use log::{error, info};
-use std::collections::HashMap;
+use std::error::Error;
 
 pub async fn generate(sub_matches: &ArgMatches) -> () {
     let user = sub_matches.value_of("user").unwrap();
     let url = sub_matches.value_of("box").unwrap();
     let secret = sub_matches.value_of("secret").unwrap();
 
-    let _box_instance = match create_box(ConnectionConfig {
+    let box_instance = match create_box(ConnectionConfig {
         base_url: url.to_string(),
         username: user.to_string(),
         secret: secret.to_string(),
@@ -41,16 +41,13 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
             it
         }
     };
-    let mut result: HashMap<String, TypeElement> = HashMap::new();
-    result.insert(
-        "test".to_string(),
-        TypeElement {
-            name: "test".to_string(),
-            element: TypeElementPart {
-                description: Some("test".to_string()),
-            },
-        },
-    );
-    cache.save_intermediate_types(result);
-    cache.save();
+    match box_instance
+        .get_concept("hl7-fhir-r4-core.value-set.identity-assuranceLevel/value-set".to_string())
+        .await
+    {
+        Ok(_) => {}
+        Err(err) => {
+            error!("{:#?}", err)
+        }
+    }
 }

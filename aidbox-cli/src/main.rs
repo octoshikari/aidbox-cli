@@ -1,8 +1,10 @@
 mod devbox;
 mod types;
 
+use chrono::Local;
 use clap::Command;
 use log::LevelFilter;
+use std::io::Write;
 
 fn cli() -> Command<'static> {
     Command::new("aidbox-cli")
@@ -21,7 +23,20 @@ fn main() {
         .build()
         .unwrap()
         .block_on(async {
-            env_logger::builder().filter_level(LevelFilter::Info).init();
+            env_logger::builder()
+                .format(|buf, record| {
+                    let level_style = buf.default_level_style(record.level());
+                    writeln!(
+                        buf,
+                        "[{} {} {}]: {}",
+                        Local::now().format("%Y-%m-%d %H:%M:%S"),
+                        level_style.value(record.level()),
+                        record.module_path().as_ref().unwrap().to_string(),
+                        record.args()
+                    )
+                })
+                .filter_level(LevelFilter::Info)
+                .init();
             let matches = cli().get_matches();
 
             match matches.subcommand() {
@@ -34,7 +49,7 @@ fn main() {
                         .collect::<Vec<_>>();
                     println!("Calling out to {:?} with {:?}", ext, args);
                 }
-                _ => unreachable!(), // If all subcommands are defined above, anything else is unreachabe!()
+                _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
             }
         })
 }
