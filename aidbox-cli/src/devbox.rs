@@ -1,11 +1,12 @@
+use bollard::image::CreateImageOptions;
 use bollard::Docker;
 use chrono::{DateTime, Utc};
 use clap::{ArgMatches, Command};
+use future::ready;
+use futures_util::stream::TryStreamExt;
 use log::{error, info};
 use serde::{Deserialize, Deserializer};
-use std::io::{BufRead, BufReader};
-use std::process::{Command as ProcessCommand, Stdio};
-use which::which;
+use std::future;
 
 pub fn devbox_command() -> Command<'static> {
     return Command::new("devbox")
@@ -82,13 +83,6 @@ struct TagResults {
     results: Vec<TagInfo>,
 }
 
-fn find_binary(binary: &str) -> String {
-    match which(binary) {
-        Ok(bin) => bin.into_os_string().into_string().unwrap(),
-        Err(e) => panic!("\"{:?}\" binary not found: {:?}", binary, e),
-    }
-}
-
 async fn check_latest_version_on_dockerhub(tag: &String) -> Result<(), Box<dyn std::error::Error>> {
     let docker = Docker::connect_with_socket_defaults().unwrap();
 
@@ -113,7 +107,7 @@ async fn check_latest_version_on_dockerhub(tag: &String) -> Result<(), Box<dyn s
     }
 
     let res: TagResults = reqwest::get(
-        "https://hub.docker.com/v2/repositories/healthsamurai/devbox/tags/?page_size=25&page=1&name=edge",
+        format!("https://hub.docker.com/v2/repositories/healthsamurai/devbox/tags/?page_size=25&page=1&name={}", tag),
     ).await?.json().await?;
 
     let last_updated = res.results[0].last_updated.unwrap();
@@ -138,34 +132,37 @@ async fn check_latest_version_on_dockerhub(tag: &String) -> Result<(), Box<dyn s
 async fn pull_latest_image_from_dockerhub(tag: &String) -> Result<(), Box<dyn std::error::Error>> {
     let docker = Docker::connect_with_socket_defaults().unwrap();
 
-    match docker.version().await {
-        Ok(..) => {
-            let docker_binary: String = find_binary("docker");
-
-            let mut cmd = ProcessCommand::new(docker_binary)
-                .arg("pull")
-                .arg(format!("healthsamurai/devbox:{}", tag).as_str())
-                .stdout(Stdio::piped())
-                .spawn()
-                .unwrap();
-
-            {
-                let stdout = cmd.stdout.as_mut().unwrap();
-                let stdout_reader = BufReader::new(stdout);
-                let stdout_lines = stdout_reader.lines();
-
-                for line in stdout_lines {
-                    info!("{:?}", line.unwrap());
+    if let Ok(..) = docker.version().await {
+        info!(
+            "Image update {} has been started",
+            format!("healthsamurai/devbox:{}", tag).to_string()
+        );
+        docker
+            .create_image(
+                Some(CreateImageOptions {
+                    from_image: format!("healthsamurai/devbox:{}", tag).to_string(),
+                    ..Default::default()
+                }),
+                None,
+                None,
+            )
+            .try_for_each(|item| {
+                if item.id.is_some() && item.progress.is_some() {
+                    info!("{:#?} {:#?}", item.id.unwrap(), item.progress.unwrap());
                 }
-            }
+                ready(Ok(()))
+            })
+            .await?;
 
-            cmd.wait().unwrap();
-        }
-        Err(..) => {
-            error!("Docker not running");
-            std::process::exit(exitcode::OK);
-        }
+        info!(
+            "Image {} has been updated",
+            format!("healthsamurai/devbox:{}", tag).to_string()
+        );
+    } else {
+        error!("Docker not running");
+        std::process::exit(exitcode::OK);
     }
+
     Ok(())
 }
 
