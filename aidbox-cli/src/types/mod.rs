@@ -15,7 +15,10 @@ pub fn types_command() -> Command<'static> {
                     arg!(-b --box <URL> "Aibox URL"),
                     arg!(-u --user <USERNAME> "Aidbox basic auth user"),
                     arg!(-s --secret <SECRET> "Aidbox basic auth secret"),
-                    arg!(-f --folder ... "Cache folder"),
+                    Arg::new("cache-folder")
+                        .long("cache-folder")
+                        .help("Cache folder path")
+                        .default_value(".local-cache"),
                     Arg::new("cache")
                         .long("cache")
                         .short('c')

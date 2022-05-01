@@ -61,8 +61,7 @@ pub async fn devbox_match(sub_matches: &ArgMatches) -> () {
             )
             .await
             {
-                Ok(..) => {}
-                Err(..) => {}
+                _ => {}
             }
         }
 
@@ -87,11 +86,11 @@ async fn check_latest_version_on_dockerhub(tag: &String) -> Result<(), Box<dyn s
     let docker = Docker::connect_with_socket_defaults().unwrap();
 
     match docker.version().await {
-        Ok(..) => {}
         Err(..) => {
             error!("Docker not running");
             std::process::exit(exitcode::OK);
         }
+        _ => {}
     }
 
     let image = docker

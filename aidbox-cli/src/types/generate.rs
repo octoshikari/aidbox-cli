@@ -1,3 +1,4 @@
+use crate::types::cache::create_cache;
 use clap::ArgMatches;
 use exitcode::OK;
 use log::{error, info};
@@ -52,7 +53,6 @@ impl BoxInstance {
 //   }
 //
 // export type Box = {
-// instance: AxiosInstance;
 // loadAllSymbols: (
 // excludeNamespaces: Array<RegExp>,
 // excludedTags: string[],
@@ -61,7 +61,6 @@ impl BoxInstance {
 // ) => Promise<string[]>;
 // getSymbol: (symbol: string) => Promise<ZenSchema>;
 // getConcept: (symbol: string) => Promise<string[]>;
-// healthCheck: () => Promise<boolean>;
 // };
 
 async fn create_box(config: ConnectionConfig) -> Result<BoxInstance, reqwest::Error> {
@@ -94,4 +93,19 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
             std::process::exit(OK);
         }
     };
+    let cache = create_cache(
+        sub_matches.is_present("cache"),
+        sub_matches
+            .value_of("cache-folder")
+            .as_ref()
+            .unwrap()
+            .to_string(),
+    );
+    match cache {
+        Err(err) => {
+            error!("Cache creating error: {:}", err.to_string());
+            std::process::exit(OK);
+        }
+        Ok(..) => info!("Cache ready!"),
+    }
 }
