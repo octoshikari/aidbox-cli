@@ -1,4 +1,4 @@
-use crate::types::cache::{create_cache, TypeElementPart};
+use crate::types::cache::create_cache;
 use crate::types::r#box::{create_box, ConnectionConfig};
 use clap::ArgMatches;
 use exitcode::OK;
@@ -40,13 +40,7 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
             it
         }
     };
-    match box_instance
-        .get_concept("hl7-fhir-r4-core.value-set.identity-assuranceLevel/value-set".to_string())
-        .await
-    {
-        Ok(_) => {}
-        Err(err) => {
-            error!("{:#?}", err)
-        }
-    }
+    box_instance
+        .load_all_symbols(cache.cache_enabled, &cache.cache_path)
+        .await;
 }

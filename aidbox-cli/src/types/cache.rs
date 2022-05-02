@@ -24,8 +24,8 @@ pub struct Cache {
     pub confirms: HashMap<String, Value>,
     pub value_sets: HashMap<String, Value>,
     pub schema: HashMap<String, Value>,
-    cache_path: String,
-    cache_enabled: bool,
+    pub cache_path: String,
+    pub cache_enabled: bool,
 }
 
 impl Cache {

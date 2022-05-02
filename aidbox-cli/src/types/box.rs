@@ -1,4 +1,5 @@
 use log::info;
+use regex::RegexSet;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Client;
 use serde::Deserialize;
@@ -49,6 +50,75 @@ impl BoxInstance {
             config,
         }
     }
+    pub async fn load_all_symbols(
+        &self,
+        cache: bool,
+        cache_path: &str,
+    ) -> Result<Vec<&str>, Box<dyn Error>> {
+        let excluded_tags = [".search.", ".value-set."];
+
+        let excluded_namespaces =
+            RegexSet::new(&[r"^aidbox", r"^zenbox", r"^fhir", r"^zen$", r"^zen.fhir"]).unwrap();
+
+        info!("{:#?}", excluded_namespaces);
+        info!("{:#?}", excluded_tags);
+        Ok(vec![""])
+    }
+    // if (useFromFileSystem) {
+    //     if (fs.existsSync(cachePath + "/aidbox-symbols.json")) {
+    //       try {
+    //         const data: string[] = JSON.parse(
+    //           fs.readFileSync(cachePath + "/aidbox-symbols.json").toString(),
+    //         );
+    //         if (data.length > 0) return data;
+    //         else {
+    //           boxLog("Saved symbols files empty");
+    //         }
+    //       } catch {
+    //         boxLog("Saved symbols files empty");
+    //       }
+    //     } else {
+    //       boxLog("Cached symbols not found. We will load them");
+    //     }
+    //   }
+    //   const {
+    //     data: { result: ns },
+    //   }: { data: { result: string[] } } = await instance.post("/rpc", {
+    //     method: "aidbox.zen/namespaces",
+    //     params: {},
+    //   });
+
+    //   const namespaces = ns.filter(
+    //     (namespace) =>
+    //       !excludeNamespaces.some((symbol) => symbol.test(namespace)),
+    //   );
+
+    //   const symbols: string[] = [];
+
+    //   for (const namespace of namespaces) {
+    //     const {
+    //       data: { result },
+    //     } = await instance.post<{ result: { name: string }[] }>(
+    //       "/rpc",
+    //       `{:method aidbox.zen/symbols :params { :ns ${namespace}}}`,
+    //       { headers: { "Content-Type": "application/edn" } },
+    //     );
+    //     result.map((r: { name: string }) =>
+    //       symbols.push(`${namespace}/${r.name}`),
+    //     );
+    //   }
+
+    //   const finalResult = symbols.filter(
+    //     (s) => !excludedTags.some((exc) => s.startsWith(exc)),
+    //   );
+
+    //   fs.writeFileSync(
+    //     cachePath + "/aidbox-symbols.json",
+    //     JSON.stringify(finalResult),
+    //   );
+
+    //   return finalResult;
+
     pub async fn health_check(&self) -> Result<bool, reqwest::Error> {
         let result = self
             .instance
@@ -115,15 +185,6 @@ impl BoxInstance {
         return Ok(result);
     }
 }
-
-// export type Box = {
-// loadAllSymbols: (
-// excludeNamespaces: Array<RegExp>,
-// excludedTags: string[],
-// cachePath: string,
-// useFromFileSystem?: boolean,
-// ) => Promise<string[]>;
-// };
 
 pub async fn create_box(config: ConnectionConfig) -> Result<BoxInstance, reqwest::Error> {
     let box_instance = BoxInstance::new(config);
