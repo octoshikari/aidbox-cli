@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::info;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Client;
 use serde::Deserialize;
@@ -39,7 +39,7 @@ pub struct SearchEntry {
 }
 #[derive(Deserialize, Debug)]
 pub struct BoxSearch {
-    entry: Vec<Option<SearchEntry>>,
+    entry: Vec<SearchEntry>,
 }
 
 impl BoxInstance {
@@ -85,23 +85,15 @@ impl BoxInstance {
 
         return Ok(result.result.model);
     }
-    pub async fn get_concept(&self, symbol: String) -> Result<(), Box<dyn Error>> {
+    pub async fn get_concept(&self, symbol: String) -> Result<Vec<String>, Box<dyn Error>> {
         let definition = self.get_symbol(symbol).await?;
 
-        info!(
-            "{}",
-            format!(
-                "{}/Concept?valueset={}",
-                &self.config.base_url,
-                definition.get("uri").unwrap()
-            )
-        );
         let concept_req = self
             .instance
             .get(format!(
                 "{}/Concept?valueset={}",
                 &self.config.base_url,
-                definition.get("uri").unwrap()
+                str::replace(&definition.get("uri").unwrap().to_string(), "\"", "")
             ))
             .basic_auth(&self.config.username, Some(&self.config.secret))
             .header(ACCEPT, "application/json")
@@ -112,33 +104,17 @@ impl BoxInstance {
             _ => "Error".to_string(),
         };
         let concept_result: BoxSearch = serde_json::from_str(&concept_str)?;
-        info!("{:#?}", concept_result);
-        return Ok(());
-        // return Ok(concept_result.entry);
+        let result: Vec<_> = concept_result
+            .entry
+            .iter()
+            .map(|item| item.clone().resource.code.as_ref())
+            .filter(|item| item.is_some())
+            .map(|item| item.unwrap().to_string())
+            .collect();
+
+        return Ok(result);
     }
 }
-// getConcept: async (symbol) => {
-// const {
-// data: {
-// result: { model: definition },
-// },
-// } = await instance.post<{ result: { model: ZenSchema } }>(
-// "/rpc",
-// `{:method aidbox.zen/symbol :params { :name ${symbol}}}`,
-// { headers: { "Content-Type": "application/edn" } },
-// );
-// const {
-// data: { entry: concepts },
-// } = await instance.get<{ entry: ConceptEntry[] }>(
-// `/Concept?valueset=${definition.uri}`,
-// );
-//
-// return (
-// concepts
-// ?.map((e: ConceptEntry) => e.resource?.code)
-// .filter((item): item is string => !!item) || []
-// );
-// },
 
 // export type Box = {
 // loadAllSymbols: (
@@ -147,8 +123,6 @@ impl BoxInstance {
 // cachePath: string,
 // useFromFileSystem?: boolean,
 // ) => Promise<string[]>;
-// getSymbol: (symbol: string) => Promise<ZenSchema>;
-// getConcept: (symbol: string) => Promise<string[]>;
 // };
 
 pub async fn create_box(config: ConnectionConfig) -> Result<BoxInstance, reqwest::Error> {

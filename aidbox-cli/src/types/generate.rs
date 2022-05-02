@@ -1,9 +1,8 @@
-use crate::types::cache::{create_cache, TypeElement, TypeElementPart};
+use crate::types::cache::{create_cache, TypeElementPart};
 use crate::types::r#box::{create_box, ConnectionConfig};
 use clap::ArgMatches;
 use exitcode::OK;
 use log::{error, info};
-use std::error::Error;
 
 pub async fn generate(sub_matches: &ArgMatches) -> () {
     let user = sub_matches.value_of("user").unwrap();
