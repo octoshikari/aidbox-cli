@@ -1,4 +1,4 @@
-use log::info;
+use log::{error, info};
 use regex::RegexSet;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Client;
@@ -6,7 +6,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fmt::Debug;
+use std::fs::{self, File};
+use std::path::Path;
 
 type RpcModel = HashMap<String, Value>;
 
@@ -29,16 +30,31 @@ pub struct RpcResult {
     result: RpcResultModel,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
+pub struct RpcNamespaces {
+    result: Vec<String>,
+}
+
+#[derive(Deserialize)]
+pub struct RpcNamespaceItem {
+    name: String,
+}
+
+#[derive(Deserialize)]
+pub struct RpcNamespace {
+    result: Vec<RpcNamespaceItem>,
+}
+
+#[derive(Deserialize)]
 pub struct ConceptResource {
     code: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct SearchEntry {
     resource: ConceptResource,
 }
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize)]
 pub struct BoxSearch {
     entry: Vec<SearchEntry>,
 }
@@ -54,70 +70,93 @@ impl BoxInstance {
         &self,
         cache: bool,
         cache_path: &str,
-    ) -> Result<Vec<&str>, Box<dyn Error>> {
-        let excluded_tags = [".search.", ".value-set."];
+    ) -> Result<Vec<String>, Box<dyn Error>> {
+        if cache {
+            if Path::new(format!("{}/symbols.json", cache_path).as_str()).exists() {
+                let json = fs::read_to_string(format!("{}/symbols.json", cache_path))?;
+                let data: Vec<String> = serde_json::from_str(&json)?;
+                if !data.is_empty() {
+                    info!("Cached symbols loaded");
 
-        let excluded_namespaces =
-            RegexSet::new(&[r"^aidbox", r"^zenbox", r"^fhir", r"^zen$", r"^zen.fhir"]).unwrap();
+                    return Ok(data);
+                } else {
+                    info!("Cached symbols file empty")
+                }
+            } else {
+                info!("Cached symbols not found. We will load them");
+            }
+        }
 
-        info!("{:#?}", excluded_namespaces);
-        info!("{:#?}", excluded_tags);
-        Ok(vec![""])
+        let excluded_namespaces = RegexSet::new(&[
+            r"^aidbox",
+            r"^zenbox",
+            r"^fhir",
+            r"^zen$",
+            r"^zen.fhir",
+            r"\.value-set\.",
+            r"\.search\.",
+        ])
+        .unwrap();
+
+        let req = self
+            .instance
+            .post(format!("{}/rpc", &self.config.base_url))
+            .basic_auth(&self.config.username, Some(&self.config.secret))
+            .body("{:method aidbox.zen/namespaces :params {}}")
+            .header(CONTENT_TYPE, "application/edn")
+            .header(ACCEPT, "application/json")
+            .send();
+
+        let source_str = match req.await {
+            Ok(it) => it.text().await?,
+            _ => "Error".to_string(),
+        };
+        let namespaces: RpcNamespaces = serde_json::from_str(&source_str)?;
+
+        let filtered_namespaces = namespaces
+            .result
+            .into_iter()
+            .filter(|item| !excluded_namespaces.is_match(item))
+            .collect::<Vec<_>>();
+
+        let mut symbols: Vec<String> = Vec::new();
+
+        for item in filtered_namespaces.into_iter() {
+            let namespace_req = self
+                .instance
+                .post(format!("{}/rpc", &self.config.base_url))
+                .basic_auth(&self.config.username, Some(&self.config.secret))
+                .body(format!(
+                    "{{:method aidbox.zen/symbols :params {{:ns {}}}}}",
+                    item
+                ))
+                .header(CONTENT_TYPE, "application/edn")
+                .header(ACCEPT, "application/json")
+                .send();
+
+            let namespace_str = match namespace_req.await {
+                Ok(it) => it.text().await?,
+                Err(err) => {
+                    error!("{:#?}", err);
+                    "Error".to_string()
+                }
+            };
+            let namespace_items: RpcNamespace = serde_json::from_str(&namespace_str)?;
+            for sym in namespace_items.result.into_iter() {
+                symbols.push(format!("{}/{}", item, sym.name));
+            }
+        }
+        match serde_json::to_writer(
+            &File::create(format!("{}/symbols.json", cache_path))?,
+            &symbols,
+        ) {
+            Ok(..) => {
+                info!("Symbols load has been finished");
+            }
+            _ => {}
+        };
+        return Ok(symbols);
     }
-    // if (useFromFileSystem) {
-    //     if (fs.existsSync(cachePath + "/aidbox-symbols.json")) {
-    //       try {
-    //         const data: string[] = JSON.parse(
-    //           fs.readFileSync(cachePath + "/aidbox-symbols.json").toString(),
-    //         );
-    //         if (data.length > 0) return data;
-    //         else {
-    //           boxLog("Saved symbols files empty");
-    //         }
-    //       } catch {
-    //         boxLog("Saved symbols files empty");
-    //       }
-    //     } else {
-    //       boxLog("Cached symbols not found. We will load them");
-    //     }
-    //   }
-    //   const {
-    //     data: { result: ns },
-    //   }: { data: { result: string[] } } = await instance.post("/rpc", {
-    //     method: "aidbox.zen/namespaces",
-    //     params: {},
-    //   });
-
-    //   const namespaces = ns.filter(
-    //     (namespace) =>
-    //       !excludeNamespaces.some((symbol) => symbol.test(namespace)),
-    //   );
-
-    //   const symbols: string[] = [];
-
-    //   for (const namespace of namespaces) {
-    //     const {
-    //       data: { result },
-    //     } = await instance.post<{ result: { name: string }[] }>(
-    //       "/rpc",
-    //       `{:method aidbox.zen/symbols :params { :ns ${namespace}}}`,
-    //       { headers: { "Content-Type": "application/edn" } },
-    //     );
-    //     result.map((r: { name: string }) =>
-    //       symbols.push(`${namespace}/${r.name}`),
-    //     );
-    //   }
-
-    //   const finalResult = symbols.filter(
-    //     (s) => !excludedTags.some((exc) => s.startsWith(exc)),
-    //   );
-
-    //   fs.writeFileSync(
-    //     cachePath + "/aidbox-symbols.json",
-    //     JSON.stringify(finalResult),
-    //   );
-
-    //   return finalResult;
 
     pub async fn health_check(&self) -> Result<bool, reqwest::Error> {
         let result = self

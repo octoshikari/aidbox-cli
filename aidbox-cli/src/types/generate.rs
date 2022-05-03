@@ -40,7 +40,4 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
             it
         }
     };
-    box_instance
-        .load_all_symbols(cache.cache_enabled, &cache.cache_path)
-        .await;
 }
