@@ -23,7 +23,7 @@ pub struct TypeElement {
 pub struct Cache {
     pub primitives: HashMap<String, Value>,
     pub confirms: HashMap<String, Value>,
-    pub value_sets: HashMap<String, Value>,
+    pub value_sets: HashMap<String, Vec<String>>,
     pub schema: HashMap<String, HashMap<String, Value>>,
     pub cache_path: String,
     pub cache_enabled: bool,
@@ -148,7 +148,8 @@ pub fn create_cache(cache_enabled: bool, cache_path: String) -> Result<Cache, Er
         repair_cache_item::<Value>(&cache_path, &String::from("primitives"), cache_enabled)
             .unwrap();
     let value_sets =
-        repair_cache_item::<Value>(&cache_path, &String::from("valuesets"), cache_enabled).unwrap();
+        repair_cache_item::<Vec<String>>(&cache_path, &String::from("valuesets"), cache_enabled)
+            .unwrap();
     let schema = repair_cache_item::<HashMap<String, Value>>(
         &cache_path,
         &String::from("schema"),

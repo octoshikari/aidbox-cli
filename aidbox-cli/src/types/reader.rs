@@ -24,6 +24,100 @@ async fn get_symbol(
     };
 }
 
+/// Get value set from cache or retrieve by Aidbox API and store in cache
+async fn get_value_set(
+    box_instance: &BoxInstance,
+    cache: &mut Cache,
+    symbol: &String,
+) -> Result<Vec<String>, Box<dyn Error>> {
+    let exist = cache.value_sets.get(symbol);
+    return if exist.is_some() {
+        Ok(exist.unwrap().to_owned())
+    } else {
+        let definition = box_instance.get_concept(&symbol).await?;
+        cache
+            .value_sets
+            .insert(symbol.clone().to_string(), definition.clone());
+        Ok(definition)
+    };
+}
+
+fn get_name() -> String {
+    return "".to_string();
+}
+
+/*
+
+const getName = (element: ZenSchema, otherwise = ""): string => {
+  if (element["zen.fhir/type"]) {
+    return element["zen.fhir/type"];
+  }
+
+  if (element["resourceType"]) {
+    return element["resourceType"];
+  }
+
+  const name = zenPathToName(element["zen/name"]);
+  if (name) {
+    return name;
+  }
+
+  return otherwise;
+};
+
+
+export const zenPathToName = (str: string): string => {
+  const [nsName, symbolName] = str.split("/");
+  if (symbolName !== "schema") {
+    return kebabToCamel(symbolName);
+  }
+
+  if (nsName) {
+    const nsParts = nsName.split(".");
+    const nsLastPart = nsParts[nsParts.length - 1];
+    return kebabToCamel(nsLastPart);
+  } else {
+    return "unknown-name";
+  }
+};
+
+ const getConfirms = async (
+  box: Box,
+  cache: Cache,
+  confirms: string[] = [],
+  resourceName: string,
+): Promise<string[]> => {
+  const result = new Set<string>();
+  for (const confirm of confirms) {
+    const exist = cache.confirms.get(confirm);
+    if (exist) {
+      result.add(exist);
+    } else {
+      let el = cache.schema.get(confirm);
+      if (!el) {
+        const definition = await box.getSymbol(confirm);
+        cache.schema.set(confirm, definition);
+        el = definition;
+      }
+      if (el["fhir/polymorphic"]) {
+        // readerLog("polymorhic element", confirm);
+      } else {
+        const name = getName(el, `any-${confirm}`);
+        const newName = name.includes("-")
+          ? name.split("-").map(capitalize).join("")
+          : name;
+        cache.confirms.set(confirm, newName);
+        result.add(newName);
+      }
+    }
+  }
+  return [...result].map((r) =>
+    r === "Resource" ? `Resource<'${resourceName}'>` : r,
+  );
+};
+
+ */
+
 async fn parse_symbol(
     box_instance: &BoxInstance,
     cache: &mut Cache,
@@ -247,7 +341,7 @@ pub async fn generate_types(
     let pb = ProgressBar::new(symbols.len() as u64);
     pb.set_style(
         ProgressStyle::with_template(
-            "{spinner:.green} [{elapsed_precise}] [{bar:60.cyan/red}] ({pos}/{len})",
+            "{spinner:.green} [{elapsed}] [{bar:40.cyan/red}] ({pos}/{len})",
         )
         .unwrap()
         .progress_chars("#>-"),
@@ -267,7 +361,7 @@ pub async fn generate_types(
     }
 
     pb.finish();
-    info!("{:#?} if {:#?}", result.len(), symbols.len());
+    info!("{:#?} of {:#?}", result.len(), symbols.len());
     info!(
         "Symbols processed in {:?}s",
         (pb.elapsed().as_secs_f64() * 100f64).floor() / 100f64
