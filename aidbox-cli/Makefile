@@ -9,3 +9,8 @@ release:
 
 run: release
 	./target/release/aidbox-cli
+
+add-clippy:
+	rustup component add clippy
+lint:
+	cargo lint

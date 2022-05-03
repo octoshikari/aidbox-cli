@@ -31,7 +31,7 @@ fn main() {
                         "[{} {} {}]: {}",
                         Local::now().format("%Y-%m-%d %H:%M:%S"),
                         level_style.value(record.level()),
-                        record.module_path().as_ref().unwrap().to_string(),
+                        record.module_path().as_ref().unwrap(),
                         record.args()
                     )
                 })

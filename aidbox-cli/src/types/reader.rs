@@ -2,8 +2,9 @@ use crate::types::cache::{Cache, TypeElement, TypeElementPart};
 use crate::types::r#box::BoxInstance;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::info;
-use serde_json::Value;
-use std::collections::HashMap;
+use serde_json::{from_value, Value};
+use std::borrow::Borrow;
+use std::collections::{HashMap, HashSet};
 use std::error::Error;
 
 /// Get target symbol from cache or retrieve by Aidbox API and store in cache
@@ -16,10 +17,8 @@ async fn get_symbol(
     return if exist.is_some() {
         Ok(exist.unwrap().clone())
     } else {
-        let definition = box_instance.get_symbol(&symbol).await?;
-        cache
-            .schema
-            .insert(symbol.clone().to_string(), definition.clone());
+        let definition = box_instance.get_symbol(symbol).await?;
+        cache.schema.insert(symbol.to_string(), definition.clone());
         Ok(definition)
     };
 }
@@ -52,7 +51,7 @@ fn capitalize(s: &str) -> String {
 
 fn kebab_to_camel(item: &str) -> String {
     let v: Vec<_> = item
-        .split("-")
+        .split('-')
         .enumerate()
         .map(|(idx, item)| {
             if idx == 0 {
@@ -66,14 +65,14 @@ fn kebab_to_camel(item: &str) -> String {
 }
 
 fn zen_path_to_name(def: &Value) -> String {
-    let v: Vec<&str> = def.as_str().unwrap().split("/").collect();
+    let v: Vec<&str> = def.as_str().unwrap().split('/').collect();
 
     if v[1] != "schema" {
         return kebab_to_camel(v[1]);
     }
     if !v[0].is_empty() {
-        let ns_parts: Vec<_> = v[0].split(".").collect();
-        return kebab_to_camel(ns_parts.last().clone().unwrap());
+        let ns_parts: Vec<_> = v[0].split('.').collect();
+        return kebab_to_camel(ns_parts.last().unwrap());
     } else {
         return "unknown-name".to_string();
     }
@@ -89,44 +88,49 @@ fn get_name(element: HashMap<String, Value>) -> String {
     return zen_path_to_name(element.get("zen/name").unwrap());
 }
 
-/*
-
- const getConfirms = async (
-  box: Box,
-  cache: Cache,
-  confirms: string[] = [],
-  resourceName: string,
-): Promise<string[]> => {
-  const result = new Set<string>();
-  for (const confirm of confirms) {
-    const exist = cache.confirms.get(confirm);
-    if (exist) {
-      result.add(exist);
-    } else {
-      let el = cache.schema.get(confirm);
-      if (!el) {
-        const definition = await box.getSymbol(confirm);
-        cache.schema.set(confirm, definition);
-        el = definition;
-      }
-      if (el["fhir/polymorphic"]) {
-        // readerLog("polymorhic element", confirm);
-      } else {
-        const name = getName(el, `any-${confirm}`);
-        const newName = name.includes("-")
-          ? name.split("-").map(capitalize).join("")
-          : name;
-        cache.confirms.set(confirm, newName);
-        result.add(newName);
-      }
+async fn get_confirms(
+    box_instance: &BoxInstance,
+    cache: &mut Cache,
+    confirms: Vec<&str>,
+    resource_name: &str,
+) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut result: HashSet<String> = HashSet::new();
+    for confirm in confirms.into_iter() {
+        let exist = cache.confirms.get(confirm);
+        if exist.is_some() {
+            result.insert(exist.unwrap().to_string());
+        } else {
+            let element = match cache.schema.get(confirm) {
+                None => {
+                    let definition = box_instance.get_symbol(confirm).await?;
+                    cache.schema.insert(confirm.to_string(), definition.clone());
+                    definition.to_owned()
+                }
+                Some(it) => it.to_owned(),
+            };
+            if element.get("fhir/polymorphic").is_none() {
+                let name = get_name(element.to_owned());
+                cache
+                    .confirms
+                    .insert(confirm.to_string(), serde_json::to_value(&name).unwrap());
+                result.insert(name);
+            } else {
+                // TODO: Need understand how ot process this
+            }
+        }
     }
-  }
-  return [...result].map((r) =>
-    r === "Resource" ? `Resource<'${resourceName}'>` : r,
-  );
-};
 
- */
+    Ok(result
+        .iter()
+        .map(|item| {
+            if item == "Resource" {
+                format!("Resource<'{}'>", resource_name).to_string()
+            } else {
+                item.to_string()
+            }
+        })
+        .collect())
+}
 
 async fn parse_symbol(
     box_instance: &BoxInstance,
@@ -187,7 +191,7 @@ export const parseSymbol = async (
     definition["zen/tags"][0] === "zen/schema"
   ) {
     if (!definition["confirms"]?.includes("zenbox/Resource")) {
-      const subName = zenPathToName(symbol);
+      const subName = .thToName(symbol);
       const subConfirms = await getConfirms(
         box,
         cache,
@@ -241,7 +245,7 @@ export const parseSymbol = async (
     };
   } else if (definition["zen/tags"].includes("zen.fhir/structure-schema")) {
     if (definition?.type && definition["type"] !== "zen/map") {
-      const newName = zenPathToName(definition["zen/name"]) || "";
+      const newName = .thToName(definition["zen/name"]) || "";
 
       const inlineType = convertPrimitive(definition["type"]);
 
@@ -265,7 +269,7 @@ export const parseSymbol = async (
             ...normalizeConfirms(confirms, name),
           };
         } else {
-          const newName = zenPathToName(definition["zen/name"]);
+          const newName = .thToName(definition["zen/name"]);
 
           return {
             desc: definition["zen/desc"],
