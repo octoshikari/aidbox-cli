@@ -1,8 +1,10 @@
 use crate::types::cache::create_cache;
 use crate::types::r#box::{create_box, ConnectionConfig};
+use crate::types::reader::generate_types;
 use clap::ArgMatches;
 use exitcode::OK;
 use log::{error, info};
+use std::process::exit;
 
 pub async fn generate(sub_matches: &ArgMatches) -> () {
     let user = sub_matches.value_of("user").unwrap();
@@ -19,7 +21,7 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
         Ok(it) => it,
         Err(error) => {
             error!("{}", error.to_string());
-            std::process::exit(OK);
+            exit(OK);
         }
     };
     let cache_init = create_cache(
@@ -33,11 +35,22 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
     let cache = match cache_init {
         Err(err) => {
             error!("Cache creating error: {:}", err.to_string());
-            std::process::exit(OK);
+            exit(OK);
         }
         Ok(it) => {
             info!("Cache ready!");
             it
+        }
+    };
+
+    let _types = match generate_types(box_instance, cache).await {
+        Ok(it) => {
+            info!("Intermediate types ready");
+            it
+        }
+        Err(err) => {
+            error!("{:#?}", err);
+            exit(exitcode::OK);
         }
     };
 }
