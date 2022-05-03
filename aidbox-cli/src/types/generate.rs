@@ -32,7 +32,7 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
             .unwrap()
             .to_string(),
     );
-    let cache = match cache_init {
+    let mut cache = match cache_init {
         Err(err) => {
             error!("Cache creating error: {:}", err.to_string());
             exit(OK);
@@ -43,7 +43,13 @@ pub async fn generate(sub_matches: &ArgMatches) -> () {
         }
     };
 
-    let _types = match generate_types(box_instance, cache).await {
+    let _types = match generate_types(
+        box_instance,
+        &mut cache,
+        sub_matches.is_present("include-profiles"),
+    )
+    .await
+    {
         Ok(it) => {
             info!("Intermediate types ready");
             it

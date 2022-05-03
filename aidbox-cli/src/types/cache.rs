@@ -1,5 +1,6 @@
 use clap::ArgMatches;
 use log::{error, info};
+use serde::de::DeserializeOwned;
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -23,7 +24,7 @@ pub struct Cache {
     pub primitives: HashMap<String, Value>,
     pub confirms: HashMap<String, Value>,
     pub value_sets: HashMap<String, Value>,
-    pub schema: HashMap<String, Value>,
+    pub schema: HashMap<String, HashMap<String, Value>>,
     pub cache_path: String,
     pub cache_enabled: bool,
 }
@@ -31,7 +32,7 @@ pub struct Cache {
 impl Cache {
     pub fn save_intermediate_types(
         &self,
-        types: HashMap<String, TypeElement>,
+        types: &HashMap<String, TypeElement>,
     ) -> Result<(), Error> {
         info!("Save intermediate types into file...");
 
@@ -112,15 +113,18 @@ impl Cache {
     }
 }
 
-fn repair_cache_item(
+fn repair_cache_item<T>(
     cache_path: &str,
     item_name: &str,
     enable: bool,
-) -> Result<HashMap<String, Value>, Error> {
+) -> Result<HashMap<String, T>, Error>
+where
+    T: DeserializeOwned,
+{
     return if enable {
         if Path::new(format!("{}/{}.json", cache_path, item_name).as_str()).exists() {
             let json = fs::read_to_string(format!("{}/{}.json", cache_path, item_name))?;
-            let data: HashMap<String, Value> = serde_json::from_str(&json)?;
+            let data: HashMap<String, T> = serde_json::from_str(&json)?;
             Ok(data)
         } else {
             Ok(HashMap::new())
@@ -139,12 +143,18 @@ pub fn create_cache(cache_enabled: bool, cache_path: String) -> Result<Cache, Er
     }
 
     let confirms =
-        repair_cache_item(&cache_path, &String::from("confirms"), cache_enabled).unwrap();
+        repair_cache_item::<Value>(&cache_path, &String::from("confirms"), cache_enabled).unwrap();
     let primitives =
-        repair_cache_item(&cache_path, &String::from("primitives"), cache_enabled).unwrap();
+        repair_cache_item::<Value>(&cache_path, &String::from("primitives"), cache_enabled)
+            .unwrap();
     let value_sets =
-        repair_cache_item(&cache_path, &String::from("valuesets"), cache_enabled).unwrap();
-    let schema = repair_cache_item(&cache_path, &String::from("schema"), cache_enabled).unwrap();
+        repair_cache_item::<Value>(&cache_path, &String::from("valuesets"), cache_enabled).unwrap();
+    let schema = repair_cache_item::<HashMap<String, Value>>(
+        &cache_path,
+        &String::from("schema"),
+        cache_enabled,
+    )
+    .unwrap();
 
     return Ok(Cache {
         primitives,

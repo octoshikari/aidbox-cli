@@ -170,10 +170,7 @@ impl BoxInstance {
             Err(error) => Err(error),
         };
     }
-    pub async fn get_symbol(
-        &self,
-        symbol: String,
-    ) -> Result<HashMap<String, Value>, Box<dyn Error>> {
+    pub async fn get_symbol(&self, symbol: &str) -> Result<HashMap<String, Value>, Box<dyn Error>> {
         let req = self
             .instance
             .post(format!("{}/rpc", &self.config.base_url))
@@ -194,7 +191,7 @@ impl BoxInstance {
 
         return Ok(result.result.model);
     }
-    pub async fn get_concept(&self, symbol: String) -> Result<Vec<String>, Box<dyn Error>> {
+    pub async fn get_concept(&self, symbol: &str) -> Result<Vec<String>, Box<dyn Error>> {
         let definition = self.get_symbol(symbol).await?;
 
         let concept_req = self
