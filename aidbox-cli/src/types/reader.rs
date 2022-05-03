@@ -42,44 +42,54 @@ async fn get_value_set(
     };
 }
 
-fn get_name() -> String {
-    return "".to_string();
+fn capitalize(s: &str) -> String {
+    let mut c = s.chars();
+    match c.next() {
+        None => String::new(),
+        Some(f) => f.to_uppercase().chain(c).collect(),
+    }
+}
+
+fn kebab_to_camel(item: &str) -> String {
+    let v: Vec<_> = item
+        .split("-")
+        .enumerate()
+        .map(|(idx, item)| {
+            if idx == 0 {
+                item.to_string()
+            } else {
+                capitalize(item)
+            }
+        })
+        .collect();
+    return v.join("");
+}
+
+fn zen_path_to_name(def: &Value) -> String {
+    let v: Vec<&str> = def.as_str().unwrap().split("/").collect();
+
+    if v[1] != "schema" {
+        return kebab_to_camel(v[1]);
+    }
+    if !v[0].is_empty() {
+        let ns_parts: Vec<_> = v[0].split(".").collect();
+        return kebab_to_camel(ns_parts.last().clone().unwrap());
+    } else {
+        return "unknown-name".to_string();
+    }
+}
+
+fn get_name(element: HashMap<String, Value>) -> String {
+    if element.get("zen.fhir/type").is_some() {
+        return element.get("zen.fhir/type").unwrap().to_string();
+    }
+    if element.get("resourceType").is_some() {
+        return element.get("resourceType").unwrap().to_string();
+    }
+    return zen_path_to_name(element.get("zen/name").unwrap());
 }
 
 /*
-
-const getName = (element: ZenSchema, otherwise = ""): string => {
-  if (element["zen.fhir/type"]) {
-    return element["zen.fhir/type"];
-  }
-
-  if (element["resourceType"]) {
-    return element["resourceType"];
-  }
-
-  const name = zenPathToName(element["zen/name"]);
-  if (name) {
-    return name;
-  }
-
-  return otherwise;
-};
-
-
-export const zenPathToName = (str: string): string => {
-  const [nsName, symbolName] = str.split("/");
-  if (symbolName !== "schema") {
-    return kebabToCamel(symbolName);
-  }
-
-  if (nsName) {
-    const nsParts = nsName.split(".");
-    const nsLastPart = nsParts[nsParts.length - 1];
-    return kebabToCamel(nsLastPart);
-  } else {
-    return "unknown-name";
-  }
-};
 
  const getConfirms = async (
   box: Box,
@@ -147,6 +157,8 @@ async fn parse_symbol(
             return Ok(None);
         }
 
+        let resource_name = get_name(definition);
+        info!("{}", resource_name);
         return Ok(Some(()));
     }
 
@@ -162,7 +174,7 @@ export const parseSymbol = async (
 ): Promise<TypesElement | undefined> => {
 
 
-  const name = getName(definition);
+
 
   if (name === "Reference") {
     return;
