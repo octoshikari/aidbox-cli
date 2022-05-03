@@ -1,9 +1,10 @@
 use crate::types::cache::{Cache, TypeElement, TypeElementPart};
 use crate::types::r#box::BoxInstance;
 use indicatif::{ProgressBar, ProgressStyle};
+use lazy_static::lazy_static;
 use log::info;
-use serde_json::{from_value, Value};
-use std::borrow::Borrow;
+use regex::Regex;
+use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 
@@ -94,11 +95,15 @@ async fn get_confirms(
     confirms: Vec<&str>,
     resource_name: &str,
 ) -> Result<Vec<String>, Box<dyn Error>> {
+    lazy_static! {
+        static ref REGEX: Regex = Regex::new(r#"""#).unwrap();
+    }
+
     let mut result: HashSet<String> = HashSet::new();
     for confirm in confirms.into_iter() {
         let exist = cache.confirms.get(confirm);
         if exist.is_some() {
-            result.insert(exist.unwrap().to_string());
+            result.insert(exist.unwrap().as_str().unwrap().to_string());
         } else {
             let element = match cache.schema.get(confirm) {
                 None => {
@@ -113,21 +118,17 @@ async fn get_confirms(
                 cache
                     .confirms
                     .insert(confirm.to_string(), serde_json::to_value(&name).unwrap());
-                result.insert(name);
+                result.insert(name.to_string());
             } else {
                 // TODO: Need understand how ot process this
             }
         }
     }
-
     Ok(result
         .iter()
-        .map(|item| {
-            if item == "Resource" {
-                format!("Resource<'{}'>", resource_name).to_string()
-            } else {
-                item.to_string()
-            }
+        .map(|item| match item == &"Resource" {
+            true => format!("Resource<'{}'>", REGEX.replace_all(resource_name, "")),
+            _ => item.to_string(),
         })
         .collect())
 }
@@ -161,8 +162,31 @@ async fn parse_symbol(
             return Ok(None);
         }
 
-        let resource_name = get_name(definition);
-        info!("{}", resource_name);
+        let resource_name = get_name(definition.clone());
+
+        if resource_name == "Reference" {
+            return Ok(None);
+        }
+
+        let pre_confirms = definition.get("confirms");
+        let confirms = match pre_confirms {
+            Some(it) => {
+                get_confirms(
+                    box_instance,
+                    cache,
+                    it.as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|item| item.as_str())
+                        .filter(|item| item.is_some())
+                        .map(|item| item.unwrap())
+                        .collect(),
+                    &resource_name,
+                )
+                .await?
+            }
+            _ => vec![],
+        };
         return Ok(Some(()));
     }
 
@@ -176,15 +200,6 @@ export const parseSymbol = async (
   symbol: string,
   includeProfile: boolean,
 ): Promise<TypesElement | undefined> => {
-
-
-
-
-  if (name === "Reference") {
-    return;
-  }
-
-  const confirms = await getConfirms(box, cache, definition.confirms, name);
 
   if (
     definition["zen/tags"].length === 1 &&
