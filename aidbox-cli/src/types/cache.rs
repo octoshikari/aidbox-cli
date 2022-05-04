@@ -9,12 +9,12 @@ use std::fs::File;
 use std::io::Error;
 use std::path::Path;
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct TypeElementPart {
     pub description: Option<String>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct TypeElement {
     pub name: String,
     pub element: TypeElementPart,

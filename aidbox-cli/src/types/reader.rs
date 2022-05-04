@@ -1,8 +1,9 @@
 use crate::types::cache::{Cache, TypeElement, TypeElementPart};
 use crate::types::r#box::BoxInstance;
+use exitcode::OK;
 use indicatif::{ProgressBar, ProgressStyle};
 use lazy_static::lazy_static;
-use log::info;
+use log::{info, warn};
 use regex::Regex;
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -81,10 +82,20 @@ fn zen_path_to_name(def: &Value) -> String {
 
 fn get_name(element: HashMap<String, Value>) -> String {
     if element.get("zen.fhir/type").is_some() {
-        return element.get("zen.fhir/type").unwrap().to_string();
+        return element
+            .get("zen.fhir/type")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string();
     }
     if element.get("resourceType").is_some() {
-        return element.get("resourceType").unwrap().to_string();
+        return element
+            .get("resourceType")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .to_string();
     }
     return zen_path_to_name(element.get("zen/name").unwrap());
 }
@@ -138,7 +149,7 @@ async fn parse_symbol(
     cache: &mut Cache,
     symbol: &String,
     include_profiles: bool,
-) -> Result<Option<()>, Box<dyn Error>> {
+) -> Result<Option<TypeElement>, Box<dyn Error>> {
     let definition = get_symbol(box_instance, cache, symbol).await?;
     if definition.get("zen/tags").is_some() {
         let tags: Vec<_> = definition
@@ -187,7 +198,47 @@ async fn parse_symbol(
             }
             _ => vec![],
         };
-        return Ok(Some(()));
+        if tags.len() == 1 && tags.get(0).unwrap() == &"zen/schema" {
+            if !tags.contains(&"zenbox/Resource") {
+                if definition.get("keys").is_none() {
+                    warn!("No keys in simple schema {} {:#?}", symbol, definition);
+                    return Ok(None);
+                } else {
+                    return Ok(Some(TypeElement {
+                        name: resource_name.clone().to_string(),
+                        element: TypeElementPart {
+                            description: match definition.get("zen/desc") {
+                                Some(it) => Some(it.to_string()),
+                                _ => None,
+                            },
+                        },
+                    }));
+                }
+            } else {
+                info!("Unknown simple schema {} {:#?}", symbol, definition);
+                return Ok(None);
+            }
+        }
+        /*
+        const parsedTypes = definition.keys
+          ? await parseMap(box, cache, name, definition.keys, definition.require)
+          : ({
+              "[key:string]": { type: "any", require: true },
+            } as TypesElementPart["defs"]);
+
+        return {
+          name: subName,
+          desc: definition["zen/desc"],
+          defs: parsedTypes,
+          ...normalizeConfirms(subConfirms, name),
+        };
+          */
+        return Ok(Some(TypeElement {
+            name: resource_name.clone().to_string(),
+            element: TypeElementPart {
+                description: Some("test".to_string()),
+            },
+        }));
     }
 
     return Ok(None);
@@ -392,11 +443,14 @@ pub async fn generate_types(
     }
 
     pb.finish();
+
     info!("{:#?} of {:#?}", result.len(), symbols.len());
+
     info!(
         "Symbols processed in {:?}s",
         (pb.elapsed().as_secs_f64() * 100f64).floor() / 100f64
     );
+    info!("{:#?}", result);
 
     let mut types = HashMap::new();
     types.insert(
