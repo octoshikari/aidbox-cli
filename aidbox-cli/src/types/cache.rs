@@ -10,8 +10,21 @@ use std::io::Error;
 use std::path::Path;
 
 #[derive(Serialize, Debug)]
+pub struct TypeElementSubType {
+    pub description: Option<String>,
+    pub require: Option<bool>,
+    pub sub_type: Option<HashMap<String, TypeElementPart>>,
+    pub plain_type: Option<String>,
+    pub extends: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Debug)]
 pub struct TypeElementPart {
     pub description: Option<String>,
+    pub sub_type: Option<HashMap<String, TypeElementSubType>>,
+    pub source: Option<bool>,
+    pub extends: Option<Vec<String>>,
+    pub plain_type: Option<String>,
 }
 
 #[derive(Serialize, Debug)]

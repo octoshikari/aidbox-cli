@@ -1,3 +1,4 @@
+.PHONY: lint
 install-watch:
 	cargo install cargo-watch
 
@@ -13,4 +14,4 @@ run: release
 add-clippy:
 	rustup component add clippy
 lint:
-	cargo lint
+	cargo clippy

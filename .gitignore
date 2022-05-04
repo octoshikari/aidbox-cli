@@ -3,7 +3,6 @@
 .cache
 .local-cache
 .test-cache
-.vscode
 aidbox-generated-types.ts
 build
 binary
