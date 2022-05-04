@@ -41,14 +41,16 @@ async fn get_symbol(
 async fn get_value_set(
     box_instance: &BoxInstance,
     cache: &mut Cache,
-    symbol: &String,
+    symbol: &str,
 ) -> Result<Vec<String>, Box<dyn Error>> {
     let exist = cache.value_sets.get(symbol);
     return if exist.is_some() {
         Ok(exist.unwrap().to_owned())
     } else {
         let definition = box_instance.get_concept(symbol).await?;
-        cache.value_sets.insert(symbol.clone(), definition.clone());
+        cache
+            .value_sets
+            .insert(symbol.to_string(), definition.clone());
         Ok(definition)
     };
 }
@@ -143,45 +145,109 @@ async fn get_confirms(
     }
     Ok(result
         .iter()
-        .map(|item| match item == &"Resource" {
-            true => format!("Resource<'{}'>", resource_name.to_string()),
+        .map(|item| match "Resource" == item {
+            true => format!("Resource<'{}'>", resource_name),
             _ => item.to_string(),
         })
         .collect())
 }
 
-async fn parse_map(box_instance: &BoxInstance, cache: &mut Cache, x: &String) {}
+fn wrap_key(source: &str) -> String {
+    return if source.contains('-') {
+        format!("'{}'", source)
+    } else {
+        source.to_string()
+    };
+}
+
+async fn parse_map(
+    box_instance: &BoxInstance,
+    cache: &mut Cache,
+    resource_name: &str,
+    keys: &Value,
+    require_keys: Option<&Value>,
+) -> Result<HashMap<String, TypeElementSubType>, Box<dyn Error>> {
+    let mut result_map: HashMap<String, TypeElementSubType> = HashMap::new();
+
+    let required: Vec<String> = match require_keys {
+        Some(item) => match item.as_array() {
+            Some(it) => it
+                .iter()
+                .map(|item| item.as_str())
+                .filter(|item| item.is_some())
+                .map(|item| item.unwrap().to_string())
+                .collect(),
+            _ => vec![],
+        },
+        _ => vec![],
+    };
+
+    for val in keys.as_object().unwrap() {
+        let (key, value) = val;
+        if value.get("zen.fhir/value-set").is_some() {
+            let values = get_value_set(
+                box_instance,
+                cache,
+                value
+                    .get("zen.fhir/value-set")
+                    .unwrap()
+                    .get("symbol")
+                    .unwrap()
+                    .as_str()
+                    .unwrap(),
+            )
+            .await?;
+            info!(
+                "{} and values {:#?} and require {:#?}",
+                key, values, required
+            );
+
+            let plain_type = match values.is_empty() {
+                true => {
+                    let confirms = match value.get("confirms") {
+                        Some(it) => it
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .filter_map(|item| item.as_str())
+                            .collect(),
+                        _ => vec![],
+                    };
+                    let res = match get_confirms(box_instance, cache, confirms, resource_name).await
+                    {
+                        Ok(it) => Some(it.join(" | ")),
+                        Err(..) => Some("any".to_string()),
+                    };
+                    res
+                }
+                _ => Some(
+                    values
+                        .iter()
+                        .map(|it| format!("'{}'", it))
+                        .collect::<Vec<_>>()
+                        .join(" | "),
+                ),
+            };
+
+            result_map.insert(
+                wrap_key(key),
+                TypeElementSubType {
+                    description: value.get("zen/desc").map(|it| it.to_string()),
+                    require: Some(required.contains(key)),
+                    sub_type: None,
+                    plain_type,
+                    extends: None,
+                },
+            );
+        }
+
+        info!("{:#?} {:#?} and required {:#?}", key, value, required)
+    }
+    Ok(result_map)
+}
 
 /*
-export const parseMap = async (
-  box: Box,
-  cache: Cache,
-  resourceName: string,
-  keys: Exclude<ZenSchema["keys"], undefined> = {},
-  require: string[] = [],
-): Promise<Record<string, TypesElementPart>> => {
-  const result: Array<[string, TypesElementPart]> = [];
-
   for (const [key, value] of Object.entries(keys)) {
-    if (value["zen.fhir/value-set"]) {
-      const values = await getValueset(
-        box,
-        cache,
-        value["zen.fhir/value-set"].symbol,
-      );
-      result.push([
-        wrapKey(key),
-        {
-          require: require.includes(key),
-          type:
-            values.map((v: string) => `"${v}"`).join(" | ") ||
-            (
-              await getConfirms(box, cache, value["confirms"], resourceName)
-            ).join(" | ") ||
-            "'any'",
-          desc: value["zen/desc"],
-        },
-      ]);
     } else if (value.type) {
       if (value.type === "zen/boolean") {
         result.push([
@@ -742,9 +808,7 @@ async fn parse_symbol(
             .as_array()
             .unwrap()
             .iter()
-            .map(|item| item.as_str())
-            .filter(|item| item.is_some())
-            .map(|item| item.unwrap())
+            .filter_map(|item| item.as_str())
             .collect();
 
         if tags.contains(&"zen.fhir/profile-schema") && !include_profiles {
@@ -786,44 +850,42 @@ async fn parse_symbol(
                     warn!("No keys in simple schema {} {:#?}", symbol, definition);
                     Ok(None)
                 } else {
-                    let mut type_map: HashMap<String, TypeElementSubType> = HashMap::new();
-                    match definition.get("keys") {
-                        Some(keys) => type_map.insert(
-                            "[key: string]".to_string(),
-                            TypeElementSubType {
-                                description: definition.get("zen/desc").map(|it| it.to_string()),
-                                require: Some(false),
-                                sub_type: None,
-                                plain_type: None,
-                                extends: normalize_confirms(&confirms, &resource_name),
-                            },
-                        ),
-                        None => type_map.insert(
-                            "[key: string]".to_string(),
-                            TypeElementSubType {
-                                description: definition.get("zen/desc").map(|it| it.to_string()),
-                                require: Some(false),
-                                sub_type: None,
-                                plain_type: Some(String::from("any")),
-                                extends: None,
-                            },
-                        ),
-                    };
+                    let result_keys = match definition.get("keys") {
+                        Some(keys) => {
+                            let type_map = parse_map(
+                                box_instance,
+                                cache,
+                                &resource_name,
+                                keys,
+                                definition.get("require"),
+                            )
+                            .await?;
+                            type_map
+                        }
+                        None => {
+                            let mut type_map: HashMap<String, TypeElementSubType> = HashMap::new();
 
-                    /*
-                    const parsedTypes = definition.keys
-                      ? await parseMap(box, cache, name, definition.keys, definition.require)
-
-                    return {
-                      defs: parsedTypes,
+                            type_map.insert(
+                                "[key: string]".to_string(),
+                                TypeElementSubType {
+                                    description: definition
+                                        .get("zen/desc")
+                                        .map(|it| it.to_string()),
+                                    require: Some(false),
+                                    sub_type: None,
+                                    plain_type: Some(String::from("any")),
+                                    extends: None,
+                                },
+                            );
+                            type_map
+                        }
                     };
-                      */
 
                     Ok(Some(TypeElement {
                         name: resource_name.clone(),
                         element: TypeElementPart {
                             description: definition.get("zen/desc").map(|it| it.to_string()),
-                            sub_type: Some(type_map),
+                            sub_type: Some(result_keys),
                             source: Some(true),
                             extends: normalize_confirms(&confirms, &resource_name),
                             plain_type: None,

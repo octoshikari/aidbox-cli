@@ -50,11 +50,7 @@ impl Cache {
         info!("Save intermediate types into file...");
 
         return match serde_json::to_writer(
-            &File::create(format!(
-                "{}/{}.json",
-                self.cache_path,
-                "intermediate_types".to_string()
-            ))?,
+            &File::create(format!("{}/{}.json", self.cache_path, "intermediate_types"))?,
             &types,
         ) {
             Ok(..) => {
@@ -68,56 +64,32 @@ impl Cache {
         if self.cache_enabled {
             info!("Save result on filesystem started...");
 
-            match serde_json::to_writer(
-                &File::create(format!(
-                    "{}/{}.json",
-                    self.cache_path,
-                    "confirms".to_string()
-                ))?,
+            if let Ok(..) = serde_json::to_writer(
+                &File::create(format!("{}/{}.json", self.cache_path, "confirms"))?,
                 &self.confirms,
             ) {
-                Ok(..) => {
-                    info!("Confirms list has been saved!");
-                }
-                _ => {}
+                info!("Confirms list has been saved!");
             };
 
-            match serde_json::to_writer(
-                &File::create(format!("{}/{}.json", self.cache_path, "schema".to_string()))?,
+            if let Ok(..) = serde_json::to_writer(
+                &File::create(format!("{}/{}.json", self.cache_path, "schema"))?,
                 &self.schema,
             ) {
-                Ok(..) => {
-                    info!("Schema has been saved!");
-                }
-                _ => {}
+                info!("Schema has been saved!");
             };
 
-            match serde_json::to_writer(
-                &File::create(format!(
-                    "{}/{}.json",
-                    self.cache_path,
-                    "primitives".to_string()
-                ))?,
+            if let Ok(..) = serde_json::to_writer(
+                &File::create(format!("{}/{}.json", self.cache_path, "primitives"))?,
                 &self.primitives,
             ) {
-                Ok(..) => {
-                    info!("Primitives list has been saved!");
-                }
-                _ => {}
+                info!("Primitives list has been saved!");
             };
 
-            match serde_json::to_writer(
-                &File::create(format!(
-                    "{}/{}.json",
-                    self.cache_path,
-                    "valuesets".to_string()
-                ))?,
+            if let Ok(..) = serde_json::to_writer(
+                &File::create(format!("{}/{}.json", self.cache_path, "valuesets"))?,
                 &self.value_sets,
             ) {
-                Ok(..) => {
-                    info!("Values sets has been saved!");
-                }
-                _ => {}
+                info!("Values sets has been saved!");
             };
         } else {
             info!("Use cache disabled");
@@ -170,18 +142,18 @@ pub fn create_cache(cache_enabled: bool, cache_path: String) -> Result<Cache, Er
     )
     .unwrap();
 
-    return Ok(Cache {
+    Ok(Cache {
         primitives,
         confirms,
         value_sets,
         schema,
         cache_path,
         cache_enabled,
-    });
+    })
 }
 
-pub fn clear_cache(sub_matches: &ArgMatches) -> () {
-    match fs::remove_dir_all(sub_matches.value_of("folder").unwrap().to_string()) {
+pub fn clear_cache(sub_matches: &ArgMatches) {
+    match fs::remove_dir_all(sub_matches.value_of("folder").unwrap()) {
         Ok(..) => info!("Cache was cleared"),
         Err(error) => match error.kind() {
             std::io::ErrorKind::NotFound => error!("{}", error),

@@ -34,7 +34,7 @@ pub fn devbox_command() -> Command<'static> {
         );
 }
 
-pub async fn devbox_match(sub_matches: &ArgMatches) -> () {
+pub async fn devbox_match(sub_matches: &ArgMatches) {
     let devbox_command = sub_matches.subcommand().unwrap_or(("help", sub_matches));
     match devbox_command {
         ("check-latest-version", sub_matches) => {
