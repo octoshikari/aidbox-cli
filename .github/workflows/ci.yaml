@@ -140,8 +140,8 @@ jobs:
 
             📝  Commit message:   
 
-            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.ref }}
-            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.event.commits[0].message }}  
+            ${{ startsWith(github.event.ref, 'refs/tags/v') github.ref }}
+            ${{ startsWith(github.event.ref, 'refs/tags/v') github.event.commits[0].message }}  
 
             🌐 See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
 
