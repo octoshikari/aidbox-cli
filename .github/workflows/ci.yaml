@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest]
+        os: [ubuntu-latest, macOS-latest, windows-latest]
         rust: [stable]
 
         include:
@@ -90,11 +90,11 @@ jobs:
       - name: Build release
         run: cargo build --verbose --release
 
-      - name: Build m1
-        if: matrix.os == 'macos-latest'
-        run: |
-          rustup target add aarch64-apple-darwin
-          cargo build --verbose --release --target=aarch64-apple-darwin
+      # - name: Build m1
+      #   if: matrix.os == 'macos-latest'
+      #   run: |
+      #     rustup target add aarch64-apple-darwin
+      #     cargo build --verbose --release --target=aarch64-apple-darwin
 
       - name: Print sccache stats
         if: matrix.os != 'windows-latest'
@@ -109,12 +109,12 @@ jobs:
         with:
           name: aidbox-cli-${{ matrix.os }}
           path: target/release/aidbox-cli
-      - name: Upload unix binary
-        uses: actions/upload-artifact@v1
-        if: matrix.os == 'macos-latest'
-        with:
-          name: aidbox-cli-m1-${{ matrix.os }}
-          path: target/aarch64-apple-darwin/release/aidbox-cli
+      # - name: Upload  m1 binary
+      #   uses: actions/upload-artifact@v1
+      #   if: matrix.os == 'macos-latest'
+      #   with:
+      #     name: aidbox-cli-m1-${{ matrix.os }}
+      #     path: target/aarch64-apple-darwin/release/aidbox-cli
       - name: Upload windows binary
         uses: actions/upload-artifact@v1
         if: matrix.os == 'windows-latest'
@@ -179,14 +179,14 @@ jobs:
         with:
           name: aidbox-cli-macOS-latest
           path: dist/aidbox-cli-macOS-latest
-      - uses: actions/download-artifact@v1
-        with:
-          name: aidbox-cli-m1-macOS-latest
-          path: dist/aidbox-cli-m1-macOS-latest
       # - uses: actions/download-artifact@v1
       #   with:
-      #     name: aidbox-cli-windows-latest
-      #     path: dist/aidbox-cli-windows-latest
+      #     name: aidbox-cli-m1-macOS-latest
+      #     path: dist/aidbox-cli-m1-macOS-latest
+      - uses: actions/download-artifact@v1
+        with:
+          name: aidbox-cli-windows-latest
+          path: dist/aidbox-cli-windows-latest
       - name: List release files
         run: find dist/
       - name: Create release
@@ -217,24 +217,24 @@ jobs:
           asset_path: ./dist/aidbox-cli-macOS-latest/aidbox-cli
           asset_name: aidbox-cli-darwin-x86_64
           asset_content_type: application/x-mach-binary
-      - name: Upload macos m1 release asset
-        uses: actions/upload-release-asset@v1.0.1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./dist/aidbox-cli-m1-macOS-latest/aidbox-cli
-          asset_name: aidbox-cli-darwin-m1
-          asset_content_type: application/x-mach-binary
-      # - name: Upload windows release asset
+      # - name: Upload macos m1 release asset
       #   uses: actions/upload-release-asset@v1.0.1
       #   env:
       #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       #   with:
       #     upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-      #     asset_path: ./dist/aidbox-cli-windows-latest/aidbox-cli.exe
-      #     asset_name: aidbox-cli-windows-x86_64.exe
-      #     asset_content_type: application/vnd.microsoft.portable-executable
+      #     asset_path: ./dist/aidbox-cli-m1-macOS-latest/aidbox-cli
+      #     asset_name: aidbox-cli-darwin-m1
+      #     asset_content_type: application/x-mach-binary
+      - name: Upload windows release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./dist/aidbox-cli-windows-latest/aidbox-cli.exe
+          asset_name: aidbox-cli-windows-x86_64.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
   notify-release:
     name: Telegram notification
     if: ${{ always() && startsWith(github.event.ref, 'refs/tags/v')}}
