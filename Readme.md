@@ -1,6 +1,6 @@
 ## Aidbox CLI tool [UNOFFICIAL]
 
-![Build badge](https://github.com/cmsd2/example-cli/workflows/CI/badge.svg)
+[![CI](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml)
 
 CLI tools for generation typescript types from Aidbox zen schemas
 
