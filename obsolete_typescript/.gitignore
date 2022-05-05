@@ -4,5 +4,5 @@
 .local-cache
 .test-cache
 aidbox-generated-types.ts
-aidbox-generated-types-old.ts
-target
+build
+binary
