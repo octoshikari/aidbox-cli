@@ -284,201 +284,241 @@ async fn parse_map(
                         extends: None,
                     },
                 );
+            } else if value.get("type").unwrap().as_str().unwrap() == "zen/string" {
+                let target = match value.get("enum") {
+                    Some(it) => {
+                        let sub_target: Vec<_> = it
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .map(|item| {
+                                format!("'{}'", item.get("value").unwrap().as_str().unwrap())
+                            })
+                            .collect();
+                        if sub_target.is_empty() {
+                            "string".to_string()
+                        } else {
+                            sub_target.join(" | ")
+                        }
+                    }
+                    None => "string".to_string(),
+                };
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type: None,
+                        plain_type: Some(target),
+                        extends: None,
+                    },
+                );
+            } else if value.get("type").unwrap().as_str().unwrap() == "zen/vector" {
+                // } else if (value.type === "zen/vector") {
+                //   const type = await parseVector(box, cache, resourceName, value.every);
+                //   result.push([
+                //     wrapKey(key),
+                //     {
+                //       require: require.includes(key),
+                //       ...(typeof type === "string"
+                //         ? { type: `Array<${type}>` }
+                //         : { array: true, type: type }),
+                //       desc: value["zen/desc"],
+                //     },
+                //   ]);
+                // }
+                info!("Zen map parsing");
+            } else if value.get("type").unwrap().as_str().unwrap() == "zen/map" {
+                /*
+                      } else if (value.type === "zen/map") {
+                if (value["validation-type"] === "open") {
+                  result.push([
+                    wrapKey(key),
+                    {
+                      require: require.includes(key),
+                      type: `any`,
+                      desc: value["zen/desc"],
+                    },
+                  ]);
+                } else if (value["confirms"]) {
+                  const baseTypes = await getConfirms(
+                    box,
+                    cache,
+                    value.confirms,
+                    resourceName,
+                  );
+                  if (value["validation-type"] === "open") {
+                    result.push([
+                      wrapKey(key),
+                      {
+                        require: require.includes(key),
+                        type: `${baseTypes.join(" & ")} & {[key:string]: unknown}`,
+                        desc: value["zen/desc"],
+                      },
+                    ]);
+                  } else if (value?.keys) {
+                    result.push([
+                      wrapKey(key),
+                      {
+                        require: require.includes(key),
+                        extends: baseTypes,
+                        type: await parseMap(
+                          box,
+                          cache,
+                          resourceName,
+                          value.keys,
+                          value.require,
+                        ),
+                        desc: value["zen/desc"],
+                      },
+                    ]);
+                  } else {
+                    result.push([
+                      wrapKey(key),
+                      {
+                        require: require.includes(key),
+                        type: "any",
+                        desc: value["zen/desc"],
+                      },
+                    ]);
+                  }
+                } else if (value?.keys) {
+                  result.push([
+                    wrapKey(key),
+                    {
+                      require: require.includes(key),
+                      type: await parseMap(
+                        box,
+                        cache,
+                        resourceName,
+                        value["keys"],
+                        value["require"],
+                      ),
+                      desc: value["zen/desc"],
+                    },
+                  ]);
+                } else if (value?.values?.type === "zen/any") {
+                  result.push([
+                    wrapKey(key),
+                    {
+                      require: require.includes(key),
+                      type: `Record<string,any>`,
+                      desc: value["zen/desc"],
+                    },
+                  ]);
+                } else if (value?.values?.keys) {
+                  result.push([
+                    wrapKey(key),
+                    {
+                      require: require.includes(key),
+                      type: await parseMap(
+                        box,
+                        cache,
+                        resourceName,
+                        value.values.keys,
+                        value.values?.require,
+                      ),
+                      desc: value["zen/desc"],
+                    },
+                  ]);
+                } else {
+                  console.log("map", value);
+                  result.push([
+                    wrapKey(key),
+                    {
+                      require: require.includes(key),
+                      type: '"map-any"',
+                      desc: value["zen/desc"],
+                    },
+                  ]);
+                }
+                      */
+            } else {
+                warn!("Unknown value/type - {:#?} {:#?}", key, value)
             }
+        } else if value.get("type").is_none() && value.get("confirms").is_some() {
+            if value
+                .get("zen.fhir/reference")
+                .map(|it| it.as_object())
+                .map(|it| it.unwrap())
+                .map(|it| it.get("refers"))
+                .is_some()
+            {
+                let sub_confirms: Vec<_> = value
+                    .get("zen.fhir/reference")
+                    .unwrap()
+                    .as_object()
+                    .unwrap()
+                    .get("refers")
+                    .unwrap()
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|it| it.as_str().unwrap())
+                    .collect();
 
-            info!(
-                "With type {:#?} {:#?} and required {:#?}",
-                key, value, required
-            )
+                let refers = get_confirms(box_instance, cache, sub_confirms, resource_name).await?;
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type: None,
+                        plain_type: Some(match refers.is_empty() {
+                            false => format!("Reference<{}>", refers.join(" | ")),
+                            true => "Reference".to_string(),
+                        }),
+                        extends: None,
+                    },
+                );
+            } else {
+                let sub_confirms_vec: Vec<_> = value
+                    .get("confirms")
+                    .unwrap()
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|it| it.as_str().unwrap())
+                    .collect();
+
+                let sub_confirms =
+                    get_confirms(box_instance, cache, sub_confirms_vec, resource_name).await?;
+
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type: None,
+                        plain_type: Some(match sub_confirms.is_empty() {
+                            false => sub_confirms.join(" | "),
+                            true => "any".to_string(),
+                        }),
+                        extends: None,
+                    },
+                );
+            }
+        } else if value.get("type").is_none() {
+            result_map.insert(
+                wrap_key(key),
+                TypeElementSubType {
+                    description: value.get("zen/desc").map(|it| it.to_string()),
+                    require: Some(required.contains(key)),
+                    sub_type: None,
+                    plain_type: Some("any".to_string()),
+                    extends: None,
+                },
+            );
+            info!("With type and con {:#?} {:#?}", key, value)
+        } else {
+            info!("Parse map: unknown case {:#?} {:#?}", key, value)
         }
-
-        // info!("{:#?} {:#?} and required {:#?}", key, value, required)
     }
+
     Ok(result_map)
 }
 
 /*
-  for (const [key, value] of Object.entries(keys)) {
-    } else if (value.type) {
-      } else if (value.type === "zen/string") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: value?.enum
-              ? value.enum.map((e) => `"${e.value}"`).join(" | ")
-              : "string",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/vector") {
-        const type = await parseVector(box, cache, resourceName, value.every);
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            ...(typeof type === "string"
-              ? { type: `Array<${type}>` }
-              : { array: true, type: type }),
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/map") {
-        if (value["validation-type"] === "open") {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: `any`,
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else if (value["confirms"]) {
-          const baseTypes = await getConfirms(
-            box,
-            cache,
-            value.confirms,
-            resourceName,
-          );
-          if (value["validation-type"] === "open") {
-            result.push([
-              wrapKey(key),
-              {
-                require: require.includes(key),
-                type: `${baseTypes.join(" & ")} & {[key:string]: unknown}`,
-                desc: value["zen/desc"],
-              },
-            ]);
-          } else if (value?.keys) {
-            result.push([
-              wrapKey(key),
-              {
-                require: require.includes(key),
-                extends: baseTypes,
-                type: await parseMap(
-                  box,
-                  cache,
-                  resourceName,
-                  value.keys,
-                  value.require,
-                ),
-                desc: value["zen/desc"],
-              },
-            ]);
-          } else {
-            result.push([
-              wrapKey(key),
-              {
-                require: require.includes(key),
-                type: "any",
-                desc: value["zen/desc"],
-              },
-            ]);
-          }
-        } else if (value?.keys) {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: await parseMap(
-                box,
-                cache,
-                resourceName,
-                value["keys"],
-                value["require"],
-              ),
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else if (value?.values?.type === "zen/any") {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: `Record<string,any>`,
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else if (value?.values?.keys) {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: await parseMap(
-                box,
-                cache,
-                resourceName,
-                value.values.keys,
-                value.values?.require,
-              ),
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else {
-          console.log("map", value);
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: '"map-any"',
-              desc: value["zen/desc"],
-            },
-          ]);
-        }
-      } else {
-        console.log("type exist", key, value);
-        process.exit(1);
-      }
-    } else if (!value["type"] && value["confirms"]) {
-      if (value["zen.fhir/reference"]?.refers) {
-        const refers = await getConfirms(
-          box,
-          cache,
-          value["zen.fhir/reference"]?.refers,
-          resourceName,
-        );
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: refers?.length
-              ? `Reference<'${refers.join("' | '")}'>`
-              : `Reference`,
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type:
-              (
-                await getConfirms(box, cache, value["confirms"], resourceName)
-              ).join(" | ") || "'confirms-any'",
-            desc: value["zen/desc"],
-          },
-        ]);
-      }
-    } else if (!value["type"]) {
-      result.push([
-        wrapKey(key),
-        {
-          require: require.includes(key),
-          type: "any",
-          desc: value["zen/desc"],
-        },
-      ]);
-    } else {
-      console.log("wtf", key, value);
-      process.exit(1);
-    }
-  }
-  return Object.fromEntries(result);
-};
-
-
-
 
 export const parseVector = async (
   box: Box,
@@ -564,247 +604,6 @@ export const parseVector = async (
   }
 };
 
-export const parseMap = async (
-  box: Box,
-  cache: Cache,
-  resourceName: string,
-  keys: Exclude<ZenSchema["keys"], undefined> = {},
-  require: string[] = [],
-): Promise<Record<string, TypesElementPart>> => {
-  const result: Array<[string, TypesElementPart]> = [];
-
-  for (const [key, value] of Object.entries(keys)) {
-    if (value["zen.fhir/value-set"]) {
-      const values = await getValueset(
-        box,
-        cache,
-        value["zen.fhir/value-set"].symbol,
-      );
-      result.push([
-        wrapKey(key),
-        {
-          require: require.includes(key),
-          type:
-            values.map((v: string) => `"${v}"`).join(" | ") ||
-            (
-              await getConfirms(box, cache, value["confirms"], resourceName)
-            ).join(" | ") ||
-            "'any'",
-          desc: value["zen/desc"],
-        },
-      ]);
-    } else if (value.type) {
-      if (value.type === "zen/boolean") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "boolean",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/number") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "number",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/datetime") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "dateTime",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/integer") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "integer",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/string") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: value?.enum
-              ? value.enum.map((e) => `"${e.value}"`).join(" | ")
-              : "string",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/vector") {
-        const type = await parseVector(box, cache, resourceName, value.every);
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            ...(typeof type === "string"
-              ? { type: `Array<${type}>` }
-              : { array: true, type: type }),
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/map") {
-        if (value["validation-type"] === "open") {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: `any`,
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else if (value["confirms"]) {
-          const baseTypes = await getConfirms(
-            box,
-            cache,
-            value.confirms,
-            resourceName,
-          );
-          if (value["validation-type"] === "open") {
-            result.push([
-              wrapKey(key),
-              {
-                require: require.includes(key),
-                type: `${baseTypes.join(" & ")} & {[key:string]: unknown}`,
-                desc: value["zen/desc"],
-              },
-            ]);
-          } else if (value?.keys) {
-            result.push([
-              wrapKey(key),
-              {
-                require: require.includes(key),
-                extends: baseTypes,
-                type: await parseMap(
-                  box,
-                  cache,
-                  resourceName,
-                  value.keys,
-                  value.require,
-                ),
-                desc: value["zen/desc"],
-              },
-            ]);
-          } else {
-            result.push([
-              wrapKey(key),
-              {
-                require: require.includes(key),
-                type: "any",
-                desc: value["zen/desc"],
-              },
-            ]);
-          }
-        } else if (value?.keys) {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: await parseMap(
-                box,
-                cache,
-                resourceName,
-                value["keys"],
-                value["require"],
-              ),
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else if (value?.values?.type === "zen/any") {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: `Record<string,any>`,
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else if (value?.values?.keys) {
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: await parseMap(
-                box,
-                cache,
-                resourceName,
-                value.values.keys,
-                value.values?.require,
-              ),
-              desc: value["zen/desc"],
-            },
-          ]);
-        } else {
-          console.log("map", value);
-          result.push([
-            wrapKey(key),
-            {
-              require: require.includes(key),
-              type: '"map-any"',
-              desc: value["zen/desc"],
-            },
-          ]);
-        }
-      } else {
-        console.log("type exist", key, value);
-        process.exit(1);
-      }
-    } else if (!value["type"] && value["confirms"]) {
-      if (value["zen.fhir/reference"]?.refers) {
-        const refers = await getConfirms(
-          box,
-          cache,
-          value["zen.fhir/reference"]?.refers,
-          resourceName,
-        );
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: refers?.length
-              ? `Reference<'${refers.join("' | '")}'>`
-              : `Reference`,
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type:
-              (
-                await getConfirms(box, cache, value["confirms"], resourceName)
-              ).join(" | ") || "'confirms-any'",
-            desc: value["zen/desc"],
-          },
-        ]);
-      }
-    } else if (!value["type"]) {
-      result.push([
-        wrapKey(key),
-        {
-          require: require.includes(key),
-          type: "any",
-          desc: value["zen/desc"],
-        },
-      ]);
-    } else {
-      console.log("wtf", key, value);
-      process.exit(1);
-    }
-  }
-  return Object.fromEntries(result);
 };
 
 
@@ -1079,7 +878,7 @@ pub async fn generate_types(
             _ => None,
         };
         if definition.is_some() {
-            // info!("{:#?}", definition);
+            info!("{:#?}", definition);
 
             result.push(definition.unwrap());
         }
@@ -1111,11 +910,11 @@ pub async fn generate_types(
     );
 
     match cache.save_intermediate_types(&types) {
-        _ => {}
+        Ok(..) | Err(..) => {}
     }
 
     match cache.save() {
-        _ => {}
+        Ok(..) | Err(..) => {}
     }
 
     Ok(types)
