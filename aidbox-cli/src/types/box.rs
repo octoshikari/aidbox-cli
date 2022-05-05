@@ -146,16 +146,13 @@ impl BoxInstance {
                 symbols.push(format!("{}/{}", item, sym.name));
             }
         }
-        match serde_json::to_writer(
+        if let Ok(..) = serde_json::to_writer(
             &File::create(format!("{}/symbols.json", cache_path))?,
             &symbols,
         ) {
-            Ok(..) => {
-                info!("Symbols load has been finished");
-            }
-            _ => {}
+            info!("Symbols load has been finished");
         };
-        return Ok(symbols);
+        Ok(symbols)
     }
 
     pub async fn health_check(&self) -> Result<bool, reqwest::Error> {
@@ -189,7 +186,7 @@ impl BoxInstance {
         };
         let result: RpcResult = serde_json::from_str(&source_str)?;
 
-        return Ok(result.result.model);
+        Ok(result.result.model)
     }
     pub async fn get_concept(&self, symbol: &str) -> Result<Vec<String>, Box<dyn Error>> {
         let definition = self.get_symbol(symbol).await?;
@@ -213,12 +210,12 @@ impl BoxInstance {
         let result: Vec<_> = concept_result
             .entry
             .iter()
-            .map(|item| item.clone().resource.code.as_ref())
+            .map(|item| item.resource.code.as_ref())
             .filter(|item| item.is_some())
             .map(|item| item.unwrap().to_string())
             .collect();
 
-        return Ok(result);
+        Ok(result)
     }
 }
 

@@ -239,9 +239,60 @@ async fn parse_map(
                     extends: None,
                 },
             );
+        } else if value.get("type").is_some() {
+            if value.get("type").unwrap().as_str().unwrap() == "zen/boolean" {
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type: None,
+                        plain_type: Some("boolean".to_string()),
+                        extends: None,
+                    },
+                );
+            } else if value.get("type").unwrap().as_str().unwrap() == "zen/number" {
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type: None,
+                        plain_type: Some("number".to_string()),
+                        extends: None,
+                    },
+                );
+            } else if value.get("type").unwrap().as_str().unwrap() == "zen/datetime" {
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type: None,
+                        plain_type: Some("dateTime".to_string()),
+                        extends: None,
+                    },
+                );
+            } else if value.get("type").unwrap().as_str().unwrap() == "zen/integer" {
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type: None,
+                        plain_type: Some("integer".to_string()),
+                        extends: None,
+                    },
+                );
+            }
+
+            info!(
+                "With type {:#?} {:#?} and required {:#?}",
+                key, value, required
+            )
         }
 
-        info!("{:#?} {:#?} and required {:#?}", key, value, required)
+        // info!("{:#?} {:#?} and required {:#?}", key, value, required)
     }
     Ok(result_map)
 }
@@ -249,42 +300,6 @@ async fn parse_map(
 /*
   for (const [key, value] of Object.entries(keys)) {
     } else if (value.type) {
-      if (value.type === "zen/boolean") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "boolean",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/number") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "number",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/datetime") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "dateTime",
-            desc: value["zen/desc"],
-          },
-        ]);
-      } else if (value.type === "zen/integer") {
-        result.push([
-          wrapKey(key),
-          {
-            require: require.includes(key),
-            type: "integer",
-            desc: value["zen/desc"],
-          },
-        ]);
       } else if (value.type === "zen/string") {
         result.push([
           wrapKey(key),
@@ -1064,7 +1079,9 @@ pub async fn generate_types(
             _ => None,
         };
         if definition.is_some() {
-            result.push(definition.unwrap())
+            // info!("{:#?}", definition);
+
+            result.push(definition.unwrap());
         }
         pb.inc(1);
     }
