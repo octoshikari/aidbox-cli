@@ -102,7 +102,7 @@ jobs:
         if: matrix.os != 'windows-latest'
         with:
           name: aidbox-cli-${{ matrix.os }}
-          path: target/release/example
+          path: target/release/aidbox-cli
       - name: Upload windows binary
         uses: actions/upload-artifact@v1
         if: matrix.os == 'windows-latest'
