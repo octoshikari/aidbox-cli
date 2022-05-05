@@ -13,9 +13,10 @@ use std::path::Path;
 pub struct TypeElementSubType {
     pub description: Option<String>,
     pub require: Option<bool>,
-    pub sub_type: Option<HashMap<String, TypeElementPart>>,
+    pub sub_type: Option<HashMap<String, TypeElementSubType>>,
     pub plain_type: Option<String>,
     pub extends: Option<Vec<String>>,
+    pub array: Option<bool>,
 }
 
 #[derive(Serialize, Debug)]
