@@ -46,7 +46,7 @@ pub fn types_command() -> Command<'static> {
         );
 }
 
-pub async fn types_match(sub_matches: &ArgMatches) -> () {
+pub async fn types_match(sub_matches: &ArgMatches) {
     let types_command = sub_matches.subcommand().unwrap_or(("help", sub_matches));
     match types_command {
         ("generate", sub_matches) => generate::generate(sub_matches).await,

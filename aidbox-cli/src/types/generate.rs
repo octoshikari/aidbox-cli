@@ -6,7 +6,7 @@ use exitcode::OK;
 use log::{error, info};
 use std::process::exit;
 
-pub async fn generate(sub_matches: &ArgMatches) -> () {
+pub async fn generate(sub_matches: &ArgMatches) {
     let user = sub_matches.value_of("user").unwrap();
     let url = sub_matches.value_of("box").unwrap();
     let secret = sub_matches.value_of("secret").unwrap();

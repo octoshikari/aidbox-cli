@@ -47,8 +47,7 @@ pub async fn devbox_match(sub_matches: &ArgMatches) {
             )
             .await
             {
-                Ok(..) => {}
-                Err(..) => {}
+                Ok(..) | Err(..) => {}
             }
         }
         ("update", sub_matches) => {
@@ -61,7 +60,7 @@ pub async fn devbox_match(sub_matches: &ArgMatches) {
             )
             .await
             {
-                _ => {}
+                Ok(..) | Err(..) => {}
             }
         }
 
@@ -85,12 +84,9 @@ struct TagResults {
 async fn check_latest_version_on_dockerhub(tag: &String) -> Result<(), Box<dyn std::error::Error>> {
     let docker = Docker::connect_with_socket_defaults().unwrap();
 
-    match docker.version().await {
-        Err(..) => {
-            error!("Docker not running");
-            std::process::exit(exitcode::OK);
-        }
-        _ => {}
+    if let Err(..) = docker.version().await {
+        error!("Docker not running");
+        std::process::exit(exitcode::OK);
     }
 
     let image = docker
@@ -134,7 +130,7 @@ async fn pull_latest_image_from_dockerhub(tag: &String) -> Result<(), Box<dyn st
     if let Ok(..) = docker.version().await {
         info!(
             "Image update {} has been started",
-            format!("healthsamurai/devbox:{}", tag).to_string()
+            format!("healthsamurai/devbox:{}", tag)
         );
         docker
             .create_image(
@@ -155,7 +151,7 @@ async fn pull_latest_image_from_dockerhub(tag: &String) -> Result<(), Box<dyn st
 
         info!(
             "Image {} has been updated",
-            format!("healthsamurai/devbox:{}", tag).to_string()
+            format!("healthsamurai/devbox:{}", tag)
         );
     } else {
         error!("Docker not running");

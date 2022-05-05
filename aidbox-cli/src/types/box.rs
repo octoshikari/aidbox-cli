@@ -113,15 +113,13 @@ impl BoxInstance {
         };
         let namespaces: RpcNamespaces = serde_json::from_str(&source_str)?;
 
-        let filtered_namespaces = namespaces
+        let mut symbols: Vec<String> = Vec::new();
+
+        for item in namespaces
             .result
             .into_iter()
             .filter(|item| !excluded_namespaces.is_match(item))
-            .collect::<Vec<_>>();
-
-        let mut symbols: Vec<String> = Vec::new();
-
-        for item in filtered_namespaces.into_iter() {
+        {
             let namespace_req = self
                 .instance
                 .post(format!("{}/rpc", &self.config.base_url))
