@@ -138,8 +138,10 @@ jobs:
           message: |
             ✅  ${{ github.actor }} created commit:  
 
-            📝  Commit message: ${{ github.event.commits[0].message }} 
+            📝  Commit message:   
 
+            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.ref }}
+            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.event.commits[0].message }}  
 
             🌐 See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
 
@@ -154,7 +156,10 @@ jobs:
           message: |
             ❌ ${{ github.actor }} created commit:  
 
-            📝 Commit message: ${{ github.event.commits[0].message }}  
+            📝 Commit message:   
+
+            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.ref }}
+            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.event.commits[0].message }}  
 
 
             🌐 See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
@@ -178,8 +183,12 @@ jobs:
           path: dist/aidbox-cli-macOS-latest
       - uses: actions/download-artifact@v1
         with:
-          name: aidbox-cli-windows-latest
-          path: dist/aidbox-cli-windows-latest
+          name: aidbox-cli-m1-macOS-latest
+          path: dist/aidbox-cli-m1-macOS-latest
+      # - uses: actions/download-artifact@v1
+      #   with:
+      #     name: aidbox-cli-windows-latest
+      #     path: dist/aidbox-cli-windows-latest
       - name: List release files
         run: find dist/
       - name: Create release
@@ -216,7 +225,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./dist/aidbox-cli-m1/macOS-latest/aidbox-cli
+          asset_path: ./dist/aidbox-cli-m1-macOS-latest/aidbox-cli
           asset_name: aidbox-cli-darwin-m1
           asset_content_type: application/x-mach-binary
       # - name: Upload windows release asset
