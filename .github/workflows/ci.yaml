@@ -10,7 +10,7 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macOS-latest, "windows-latest"]
+        os: [ubuntu-latest, macOS-latest]
         rust: [stable]
 
         include:
@@ -20,8 +20,8 @@ jobs:
           - os: macos-latest
             sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
             rustc-wrapper: sccache
-          - os: windows-latest
-            rustc-wrapper:
+          # - os: windows-latest
+          # rustc-wrapper:
 
     env:
       RUST_BACKTRACE: full
@@ -90,6 +90,9 @@ jobs:
       - name: Build release
         run: cargo build --verbose --release
 
+      - name: Build arm64
+        run: cargo build --verbose --release --target=aarch64-apple-darwin
+
       - name: Print sccache stats
         if: matrix.os != 'windows-latest'
         run: sccache --show-stats
@@ -103,6 +106,12 @@ jobs:
         with:
           name: aidbox-cli-${{ matrix.os }}
           path: target/release/aidbox-cli
+      - name: Upload unix binary
+        uses: actions/upload-artifact@v1
+        if: matrix.os == 'macos-latest'
+        with:
+          name: aidbox-cli-m1-${{ matrix.os }}
+          path: target/aarch64-apple-darwin/release/aidbox-cli
       - name: Upload windows binary
         uses: actions/upload-artifact@v1
         if: matrix.os == 'windows-latest'
@@ -198,12 +207,21 @@ jobs:
           asset_path: ./dist/aidbox-cli-macOS-latest/aidbox-cli
           asset_name: aidbox-cli-darwin-x86_64
           asset_content_type: application/x-mach-binary
-      - name: Upload windows release asset
+      - name: Upload macos m1 release asset
         uses: actions/upload-release-asset@v1.0.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-          asset_path: ./dist/aidbox-cli-windows-latest/aidbox-cli.exe
-          asset_name: aidbox-cli-windows-x86_64.exe
-          asset_content_type: application/vnd.microsoft.portable-executable
+          asset_path: ./dist/aidbox-cli-m1/macOS-latest/aidbox-cli
+          asset_name: aidbox-cli-darwin-m1
+          asset_content_type: application/x-mach-binary
+      # - name: Upload windows release asset
+      #   uses: actions/upload-release-asset@v1.0.1
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   with:
+      #     upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+      #     asset_path: ./dist/aidbox-cli-windows-latest/aidbox-cli.exe
+      #     asset_name: aidbox-cli-windows-x86_64.exe
+      #     asset_content_type: application/vnd.microsoft.portable-executable
