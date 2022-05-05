@@ -123,12 +123,12 @@ jobs:
           path: target/release/aidbox-cli.exe
   notify:
     name: Telegram notification
-    if: ${{ always()}}
+    if: ${{ always() && !startsWith(github.event.ref, 'refs/tags/v')}}
     needs: [build]
     runs-on: ubuntu-latest
     steps:
       - name: send success telegram message
-        if: ${{ needs.build.result == 'success'}}
+        if: ${{ needs.build.result == 'success' }}
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO }}
@@ -140,13 +140,12 @@ jobs:
 
             📝  Commit message:   
 
-            ${{ startsWith(github.event.ref, 'refs/tags/v') github.ref }}
-            ${{ startsWith(github.event.ref, 'refs/tags/v') github.event.commits[0].message }}  
+            ${{ github.event.commits[0].message }}  
 
             🌐 See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
 
       - name: send failure telegram message
-        if: ${{ needs.build.result == 'failure'}}
+        if: ${{ needs.build.result == 'failure' }}
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO }}
@@ -158,8 +157,7 @@ jobs:
 
             📝 Commit message:   
 
-            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.ref }}
-            ${{ if startsWith(github.event.ref, 'refs/tags/v') github.event.commits[0].message }}  
+            ${{ github.event.commits[0].message }}  
 
 
             🌐 See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
@@ -237,3 +235,34 @@ jobs:
       #     asset_path: ./dist/aidbox-cli-windows-latest/aidbox-cli.exe
       #     asset_name: aidbox-cli-windows-x86_64.exe
       #     asset_content_type: application/vnd.microsoft.portable-executable
+  notify-release:
+    name: Telegram notification
+    if: ${{ always() && startsWith(github.event.ref, 'refs/tags/v')}}
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: send success telegram message
+        if: ${{ needs.release.result == 'success' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            ✅  ${{ github.actor }} created tag ${{github.ref}}:  
+
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tag/${{github.tag}}
+
+      - name: send failure telegram message
+        if: ${{ needs.release.result == 'failure' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            ❌ ${{ github.actor }} created tag ${{github.ref}}:  
+
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tag/${{github.ref}}
