@@ -165,9 +165,183 @@ async fn parse_vector(
     box_instance: &BoxInstance,
     cache: &mut Cache,
     resource_name: &str,
-    keys: &Value,
-) {
-    info!("fsdfsdf");
+    every: &Value,
+) -> Result<
+    (
+        Option<bool>,
+        Option<String>,
+        Option<HashMap<String, TypeElementSubType>>,
+    ),
+    Box<dyn Error>,
+> {
+    if every.get("zen.fhir/value-set").is_some() {
+        let values = get_value_set(
+            box_instance,
+            cache,
+            every
+                .get("zen.fhir/value-set")
+                .unwrap()
+                .get("symbol")
+                .unwrap()
+                .as_str()
+                .unwrap(),
+        )
+        .await?;
+
+        if every.get("confirms").is_some() {
+            let confirms = match every.get("confirms") {
+                Some(it) => it
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|item| item.as_str())
+                    .collect(),
+                _ => vec![],
+            };
+            let confirm = get_confirms(box_instance, cache, confirms, resource_name).await?;
+
+            let single_confirm = confirm.get(0);
+            if single_confirm.is_some() {
+                if single_confirm.unwrap() == "code" {
+                    if values.is_empty() {
+                        Ok((None, Some("Array<code>".to_string()), None))
+                    } else {
+                        let target_value: Vec<_> =
+                            values.iter().map(|it| format!("'{}'", it)).collect();
+                        return Ok((
+                            None,
+                            Some(format!("Array<{}>", target_value.join(" | "))),
+                            None,
+                        ));
+                    }
+                } else if single_confirm.unwrap() == "CodeableConcept" {
+                    if values.is_empty() {
+                        Ok((None, Some("Array<CodeableConcept>".to_string()), None))
+                    } else {
+                        let target_value: Vec<_> =
+                            values.iter().map(|it| format!("'{}'", it)).collect();
+                        return Ok((
+                            None,
+                            Some(format!(
+                                "Array<CodeableConcept<{}>>",
+                                target_value.join(" | ")
+                            )),
+                            None,
+                        ));
+                    }
+                } else if single_confirm.unwrap() == "Coding" {
+                    if values.is_empty() {
+                        Ok((None, Some("Array<Coding>".to_string()), None))
+                    } else {
+                        let target_value: Vec<_> =
+                            values.iter().map(|it| format!("'{}'", it)).collect();
+                        return Ok((
+                            None,
+                            Some(format!(
+                                "Array<CodeableCoding<{}>>",
+                                target_value.join(" | ")
+                            )),
+                            None,
+                        ));
+                    }
+                } else {
+                    Ok((None, Some("Array<any>".to_string()), None))
+                }
+            } else {
+                Ok((None, Some("Array<any>".to_string()), None))
+            }
+        } else {
+            Ok((None, Some("Array<any>".to_string()), None))
+        }
+    } else if every.get("type").is_some() {
+        let nested_type = every.get("type").unwrap();
+        if nested_type == "zen/string" {
+            let target = match every.get("enum") {
+                Some(it) => {
+                    let sub_target: Vec<_> = it
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .map(|item| format!("'{}'", item.get("value").unwrap().as_str().unwrap()))
+                        .collect();
+                    if sub_target.is_empty() {
+                        "Array<string>".to_string()
+                    } else {
+                        format!("Array<{}>", sub_target.join(" | "))
+                    }
+                }
+                None => "Array<string>".to_string(),
+            };
+
+            Ok((None, Some(target), None))
+        } else if nested_type == "zen/map" {
+            if every.get("validation-type").is_some()
+                && every.get("validation-type").unwrap().as_str().unwrap() == "open"
+            {
+                Ok((None, Some("Array<any>".to_string()), None))
+            } else if every.get("keys").is_some() {
+                let sub_type = parse_map(
+                    box_instance,
+                    cache,
+                    resource_name,
+                    every.get("keys").unwrap(),
+                    every.get("require"),
+                )
+                .await?;
+                Ok((Some(true), None, Some(sub_type)))
+            } else {
+                Ok((None, Some("Array<any>".to_string()), None))
+            }
+        } else {
+            Ok((None, Some("Array<any>".to_string()), None))
+        }
+    } else if every
+        .get("zen.fhir/reference")
+        .map(|it| it.as_object())
+        .map(|it| it.unwrap())
+        .map(|it| it.get("refers"))
+        .is_some()
+    {
+        let sub_confirms: Vec<_> = every
+            .get("zen.fhir/reference")
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .get("refers")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|it| it.as_str().unwrap())
+            .collect();
+
+        let refers = get_confirms(box_instance, cache, sub_confirms, resource_name).await?;
+        return Ok((
+            None,
+            Some(match refers.is_empty() {
+                false => format!("Array<Reference<{}>>", refers.join(" | ")),
+                true => "Array<Reference>".to_string(),
+            }),
+            None,
+        ));
+    } else if every.get("confirms").is_some() {
+        let confirms = match every.get("confirms") {
+            Some(it) => it
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter_map(|item| item.as_str())
+                .collect(),
+            _ => vec![],
+        };
+        let res = match get_confirms(box_instance, cache, confirms, resource_name).await {
+            Ok(it) => it.join(" | "),
+            Err(..) => "any".to_string(),
+        };
+        return Ok((None, Some(format!("Array<{}>", res)), None));
+    } else {
+        Ok((None, Some("Array<any>".to_string()), None))
+    }
 }
 
 #[async_recursion::async_recursion]
@@ -208,10 +382,6 @@ async fn parse_map(
                     .unwrap(),
             )
             .await?;
-            info!(
-                "{} and values {:#?} and require {:#?}",
-                key, values, required
-            );
 
             let plain_type = match values.is_empty() {
                 true => {
@@ -333,20 +503,25 @@ async fn parse_map(
             } else if value.get("type").is_some()
                 && value.get("type").unwrap().as_str().unwrap() == "zen/vector"
             {
-                // let (array, plain_type, sub_type) =
-                //     parse_vector(box_instance, cache, resource_name, value.get("every")).await?;
+                let (array, plain_type, sub_type) = parse_vector(
+                    box_instance,
+                    cache,
+                    resource_name,
+                    value.get("every").unwrap(),
+                )
+                .await?;
 
-                // result_map.insert(
-                //     wrap_key(key),
-                //     TypeElementSubType {
-                //         description: value.get("zen/desc").map(|it| it.to_string()),
-                //         require: Some(required.contains(key)),
-                //         sub_type,
-                //         plain_type,
-                //         extends: None,
-                //         array,
-                //     },
-                // );
+                result_map.insert(
+                    wrap_key(key),
+                    TypeElementSubType {
+                        description: value.get("zen/desc").map(|it| it.to_string()),
+                        require: Some(required.contains(key)),
+                        sub_type,
+                        plain_type,
+                        extends: None,
+                        array,
+                    },
+                );
             } else if value.get("type").unwrap().as_str().unwrap() == "zen/map" {
                 if value.get("validation-type").is_some() {
                     if value.get("validation-type").unwrap().as_str().unwrap() == "open" {
@@ -573,96 +748,6 @@ async fn parse_map(
     Ok(result_map)
 }
 
-/*
-
-export const parseVector = async (
-  box: Box,
-  cache: Cache,
-  resourceName: string,
-  vector: Exclude<ZenSchemaKeys["every"], undefined> = {},
-): Promise<string | Record<string, TypesElementPart>> => {
-  if (vector["zen.fhir/value-set"]) {
-    const values = await getValueset(
-      box,
-      cache,
-      vector["zen.fhir/value-set"].symbol,
-    );
-    if (vector.confirms) {
-      const [confirm] = await getConfirms(
-        box,
-        cache,
-        vector.confirms,
-        resourceName,
-      );
-      if (confirm === "code") {
-        return (
-          values.map((v: string) => `"${v}"`).join(" | ") ||
-          confirm ||
-          "confirm-vector-any"
-        );
-      } else if (confirm === "CodeableConcept") {
-        return `CodeableConcept<${
-          values.map((v: string) => `"${v}"`).join(" | ") ||
-          confirm ||
-          "confirm-vector-any"
-        }>`;
-      } else if (confirm === "Coding") {
-        return `Coding<${
-          values.map((v: string) => `"${v}"`).join(" | ") ||
-          confirm ||
-          "confirm-vector-any"
-        }>`;
-      } else {
-        return "confirm-vector-any";
-      }
-    } else {
-      return "confirm-vector-any";
-    }
-  } else if (vector?.type === "zen/string") {
-    return vector?.enum
-      ? vector?.enum.map((e) => `"${e.value}"`).join(" | ")
-      : "string";
-  } else if (vector?.type === "zen/map") {
-    if (vector?.keys) {
-      return parseMap(box, cache, resourceName, vector.keys, vector.require);
-    } else if (vector["validation-type"] === "open") {
-      return "any";
-    } else {
-      // readerLog("vector map problem", vector);
-      return "any";
-    }
-  } else if (vector?.["zen.fhir/reference"]?.refers) {
-    const refers = await getConfirms(
-      box,
-      cache,
-      vector["zen.fhir/reference"]?.refers,
-      resourceName,
-    );
-    return refers?.length
-      ? `Reference<'${refers.join("' | '")}'>`
-      : `Reference`;
-  } else if (!vector?.type && vector?.confirms) {
-    return (await getConfirms(box, cache, vector.confirms, resourceName)).join(
-      " | ",
-    );
-  } else if (
-    !vector?.type &&
-    !vector.confirms &&
-    !vector["zen.fhir/reference"]
-  ) {
-    return "any";
-  } else {
-    console.log("inside vector", vector);
-    cache.save();
-    process.exit(1);
-    return "";
-  }
-};
-
-};
-
-
-*/
 async fn parse_symbol(
     box_instance: &BoxInstance,
     cache: &mut Cache,
