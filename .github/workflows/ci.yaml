@@ -90,7 +90,8 @@ jobs:
       - name: Build release
         run: cargo build --verbose --release
 
-      - name: Build arm64
+      - name: Build m1
+        if: matrix.os == 'macos-latest'
         run: cargo build --verbose --release --target=aarch64-apple-darwin
 
       - name: Print sccache stats
