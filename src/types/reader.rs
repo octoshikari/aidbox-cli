@@ -1,40 +1,11 @@
 use crate::types::cache::{Cache, TypeElement, TypeElementPart, TypeElementSubType};
+use crate::types::helpers::{convert_primitive, get_name, normalize_confirms};
 use crate::types::r#box::BoxInstance;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{info, warn};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
-
-fn convert_primitive(val: &str) -> String {
-    if val == "zen/string" {
-        String::from("string")
-    } else if val == "zen/boolean" {
-        String::from("boolean")
-    } else if val == "zen/date" || val == "zen/datetime" {
-        String::from("string")
-    } else if val == "zen/number" || val == "zen/integer" {
-        String::from("number")
-    } else {
-        String::from("any")
-    }
-}
-
-fn normalize_confirms(confirms: &[String], resource_name: &str) -> Option<Vec<String>> {
-    return if confirms.is_empty()
-        || (confirms.len() == 1 && confirms.get(0).unwrap().as_str() == resource_name)
-    {
-        None
-    } else {
-        Some(
-            confirms
-                .iter()
-                .filter(|item| item.as_str() != resource_name)
-                .map(|item| item.to_string())
-                .collect(),
-        )
-    };
-}
 
 /// Get target symbol from cache or retrieve by Aidbox API and store in cache
 async fn get_symbol(
@@ -68,63 +39,6 @@ async fn get_value_set(
             .insert(symbol.to_string(), definition.clone());
         Ok(definition)
     };
-}
-
-fn capitalize(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(f) => f.to_uppercase().chain(c).collect(),
-    }
-}
-
-fn kebab_to_camel(item: &str) -> String {
-    let v: Vec<_> = item
-        .split('-')
-        .enumerate()
-        .map(|(idx, item)| {
-            if idx == 0 {
-                item.to_string()
-            } else {
-                capitalize(item)
-            }
-        })
-        .collect();
-    v.join("")
-}
-
-fn zen_path_to_name(def: &Value) -> String {
-    let v: Vec<&str> = def.as_str().unwrap().split('/').collect();
-
-    if v[1] != "schema" {
-        return kebab_to_camel(v[1]);
-    }
-    return if !v[0].is_empty() {
-        let ns_parts: Vec<_> = v[0].split('.').collect();
-        kebab_to_camel(ns_parts.last().unwrap())
-    } else {
-        "unknown-name".to_string()
-    };
-}
-
-fn get_name(element: HashMap<String, Value>) -> String {
-    if element.get("zen.fhir/type").is_some() {
-        return element
-            .get("zen.fhir/type")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
-    }
-    if element.get("resourceType").is_some() {
-        return element
-            .get("resourceType")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string();
-    }
-    return zen_path_to_name(element.get("zen/name").unwrap());
 }
 
 async fn get_confirms(
@@ -1133,61 +1047,65 @@ pub async fn generate_types(
         (pb.elapsed().as_secs_f64() * 100f64).floor() / 100f64
     );
 
-    let mut types = HashMap::new();
-    types.insert(
-        "test".to_string(),
-        TypeElement {
-            name: "test".to_string(),
-            element: TypeElementPart {
-                description: Some("test".to_string()),
-                sub_type: None,
-                source: None,
-                extends: None,
-                plain_type: None,
-            },
-        },
-    );
+    let mut result_types: HashMap<String, TypeElement> = HashMap::new();
 
-    match cache.save_intermediate_types(&types) {
+    // let types: Vec<_> = result
+    //     .iter()
+    //     .map(|it| {
+    //         info!("{:#?}", it);
+    //         it
+    //     })
+    //     .collect();
+
+    match cache.save_intermediate_types(&result_types) {
         Ok(..) | Err(..) => {}
     }
 
     match cache.save() {
         Ok(..) | Err(..) => {}
     }
-
-    Ok(types)
+    Ok(result_types)
+}
+fn type_deep_merge(
+    left: HashMap<String, TypeElementSubType>,
+    right: HashMap<String, TypeElementSubType>,
+) {
+    println!("fsdfsdf");
+    for (key, val) in left.iter() {
+        println!("{:#?} {:#?}", key, val)
+    }
 }
 
-/*
-export const generateTypes = async (
-  box: Box,
-  cache: Cache,
-  includeProfile: boolean,
-): Promise<Types> => {
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-  const finalResult = result.reduce(
-    (accumulator: Types, current: TypesElement) => {
-      const { name, ...rest } = current;
-      if (accumulator[name]) {
-        if (rest.source) {
-          return {
-            ...accumulator,
-            [name]: merge<TypesElementPart[]>(rest, accumulator[name]),
-          };
-        } else {
-          return {
-            ...accumulator,
-            [name]: merge<TypesElementPart[]>(accumulator[name], rest),
-          };
-        }
-      }
-      return { ...accumulator, [name]: rest };
-    },
-    {},
-  );
-  return finalResult;
-};
-
-
-*/
+    #[test]
+    fn test_type_deep_merge() {
+        let mut left = HashMap::new();
+        left.insert(
+            String::from("test"),
+            TypeElementSubType {
+                description: None,
+                require: None,
+                sub_type: None,
+                plain_type: None,
+                extends: None,
+                array: None,
+            },
+        );
+        let mut right = HashMap::new();
+        right.insert(
+            String::from("test"),
+            TypeElementSubType {
+                description: None,
+                require: None,
+                sub_type: None,
+                plain_type: None,
+                extends: None,
+                array: None,
+            },
+        );
+        assert_eq!(type_deep_merge(left, right), ());
+    }
+}

@@ -1,6 +1,7 @@
 mod r#box;
 mod cache;
 mod generate;
+mod helpers;
 mod reader;
 
 use clap::{arg, Arg, ArgMatches, Command};
