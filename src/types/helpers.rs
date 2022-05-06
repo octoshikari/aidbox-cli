@@ -1,6 +1,8 @@
 use serde_json::Value;
 use std::collections::HashMap;
 
+use proptest::prelude::*;
+
 pub fn convert_primitive(val: &str) -> String {
     if val == "zen/string" {
         String::from("string")
@@ -103,5 +105,17 @@ mod tests {
             kebab_to_camel("test-case-string"),
             "testCaseString".to_string()
         );
+    }
+
+    proptest! {
+        #[test]
+        fn capitalize_idempotent(s in "[a-z]{1,10}") {
+            let result = capitalize(&s);
+
+            assert_eq!(
+                result,
+                capitalize(result.as_str())
+            )
+        }
     }
 }
