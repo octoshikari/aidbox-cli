@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::Error;
 use std::path::Path;
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub struct TypeElementSubType {
     pub description: Option<String>,
     pub require: Option<bool>,
@@ -19,7 +19,7 @@ pub struct TypeElementSubType {
     pub array: Option<bool>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 pub struct TypeElementPart {
     pub description: Option<String>,
     pub sub_type: Option<HashMap<String, TypeElementSubType>>,
@@ -46,7 +46,7 @@ pub struct Cache {
 impl Cache {
     pub fn save_intermediate_types(
         &self,
-        types: &HashMap<String, TypeElement>,
+        types: &HashMap<String, TypeElementPart>,
     ) -> Result<(), Error> {
         info!("Save intermediate types into file...");
 
