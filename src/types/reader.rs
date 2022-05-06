@@ -6,6 +6,20 @@ use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
 
+fn convert_primitive(val: &str) -> String {
+    if val == "zen/string" {
+        String::from("string")
+    } else if val == "zen/boolean" {
+        String::from("boolean")
+    } else if val == "zen/date" || val == "zen/datetime" {
+        String::from("string")
+    } else if val == "zen/number" || val == "zen/integer" {
+        String::from("number")
+    } else {
+        String::from("any")
+    }
+}
+
 fn normalize_confirms(confirms: &[String], resource_name: &str) -> Option<Vec<String>> {
     return if confirms.is_empty()
         || (confirms.len() == 1 && confirms.get(0).unwrap().as_str() == resource_name)
@@ -781,8 +795,7 @@ async fn parse_symbol(
             return Ok(None);
         }
 
-        let pre_confirms = definition.get("confirms");
-        let confirms = match pre_confirms {
+        let confirms = match definition.get("confirms") {
             Some(it) => {
                 get_confirms(
                     box_instance,
@@ -851,143 +864,230 @@ async fn parse_symbol(
                 info!("Unknown simple schema {} {:#?}", symbol, definition);
                 Ok(None)
             };
-        }
+        } else if tags.contains(&"zenbox/persistent") {
+            if (definition.get("validation-type").is_some()
+                && definition.get("validation-type").unwrap().as_str().unwrap() == "open")
+                || (definition.get("values").is_some()
+                    && definition.get("values").unwrap().get("type").is_some()
+                    && definition
+                        .get("values")
+                        .unwrap()
+                        .get("type")
+                        .unwrap()
+                        .as_str()
+                        .unwrap()
+                        == "zen/any")
+            {
+                let mut sub_type = HashMap::new();
+                sub_type.insert(
+                    "[key: string]".to_string(),
+                    TypeElementSubType {
+                        array: None,
+                        require: None,
+                        extends: None,
+                        plain_type: Some("any".to_string()),
+                        sub_type: None,
+                        description: None,
+                    },
+                );
+                return Ok(Some(TypeElement {
+                    name: resource_name.clone(),
+                    element: TypeElementPart {
+                        description: definition.get("zen/desc").map(|it| it.to_string()),
+                        sub_type: Some(sub_type),
+                        source: Some(true),
+                        extends: normalize_confirms(&confirms, &resource_name),
+                        plain_type: None,
+                    },
+                }));
+            } else {
+                let result_keys = match definition.get("keys") {
+                    Some(keys) => {
+                        let type_map = parse_map(
+                            box_instance,
+                            cache,
+                            &resource_name,
+                            keys,
+                            definition.get("require"),
+                        )
+                        .await?;
+                        type_map
+                    }
+                    None => {
+                        let mut type_map: HashMap<String, TypeElementSubType> = HashMap::new();
 
-        return Ok(None);
+                        type_map.insert(
+                            "[key: string]".to_string(),
+                            TypeElementSubType {
+                                description: definition.get("zen/desc").map(|it| it.to_string()),
+                                require: Some(false),
+                                sub_type: None,
+                                plain_type: Some(String::from("any")),
+                                extends: None,
+                                array: None,
+                            },
+                        );
+                        type_map
+                    }
+                };
+
+                return Ok(Some(TypeElement {
+                    name: resource_name.clone(),
+                    element: TypeElementPart {
+                        description: definition.get("zen/desc").map(|it| it.to_string()),
+                        sub_type: Some(result_keys),
+                        source: Some(true),
+                        extends: Some(vec![format!("Resource<{}>", resource_name)]),
+                        plain_type: None,
+                    },
+                }));
+            }
+        } else if tags.contains(&"zen.fhir/structure-schema") {
+            if definition.get("type").is_some()
+                && definition.get("type").unwrap().as_str().unwrap() != "zen/map"
+            {
+                let inline_type = convert_primitive(definition["type"].as_str().unwrap());
+
+                if cache.primitives.get(&resource_name).is_none() {
+                    cache.primitives.insert(
+                        resource_name.clone(),
+                        serde_json::to_value(&inline_type).unwrap(),
+                    );
+                }
+
+                return Ok(Some(TypeElement {
+                    name: resource_name.clone(),
+                    element: TypeElementPart {
+                        description: definition.get("zen/desc").map(|it| it.to_string()),
+                        sub_type: None,
+                        source: None,
+                        extends: None,
+                        plain_type: Some(inline_type),
+                    },
+                }));
+            } else {
+                let mut result_keys = match definition.get("keys") {
+                    Some(keys) => {
+                        let type_map = parse_map(
+                            box_instance,
+                            cache,
+                            &resource_name,
+                            keys,
+                            definition.get("require"),
+                        )
+                        .await?;
+                        type_map
+                    }
+                    None => {
+                        let mut type_map: HashMap<String, TypeElementSubType> = HashMap::new();
+
+                        type_map.insert(
+                            "[key: string]".to_string(),
+                            TypeElementSubType {
+                                description: definition.get("zen/desc").map(|it| it.to_string()),
+                                require: Some(false),
+                                sub_type: None,
+                                plain_type: Some(String::from("any")),
+                                extends: None,
+                                array: None,
+                            },
+                        );
+                        type_map
+                    }
+                };
+                if resource_name == "Resource" {
+                    result_keys.insert(
+                        "resourceType".to_string(),
+                        TypeElementSubType {
+                            description: None,
+                            require: Some(true),
+                            sub_type: None,
+                            plain_type: Some("T".to_string()),
+                            extends: None,
+                            array: None,
+                        },
+                    );
+
+                    return Ok(Some(TypeElement {
+                        name: String::from("Resource<T>"),
+                        element: TypeElementPart {
+                            description: definition.get("zen/desc").map(|it| it.to_string()),
+                            sub_type: Some(result_keys),
+                            source: None,
+                            extends: None,
+                            plain_type: None,
+                        },
+                    }));
+                } else if resource_name == "DomainResource" {
+                    return Ok(Some(TypeElement {
+                        name: String::from("DomainResource"),
+                        element: TypeElementPart {
+                            description: definition.get("zen/desc").map(|it| it.to_string()),
+                            sub_type: Some(result_keys),
+                            source: None,
+                            extends: None,
+                            plain_type: None,
+                        },
+                    }));
+                } else {
+                    return Ok(Some(TypeElement {
+                        name: resource_name.clone(),
+                        element: TypeElementPart {
+                            description: definition.get("zen/desc").map(|it| it.to_string()),
+                            sub_type: Some(result_keys),
+                            source: None,
+                            extends: normalize_confirms(&confirms, &resource_name),
+                            plain_type: None,
+                        },
+                    }));
+                }
+            }
+        } else {
+            let result_keys = match definition.get("keys") {
+                Some(keys) => {
+                    let type_map = parse_map(
+                        box_instance,
+                        cache,
+                        &resource_name,
+                        keys,
+                        definition.get("require"),
+                    )
+                    .await?;
+                    type_map
+                }
+                None => {
+                    let mut type_map: HashMap<String, TypeElementSubType> = HashMap::new();
+
+                    type_map.insert(
+                        "[key: string]".to_string(),
+                        TypeElementSubType {
+                            description: definition.get("zen/desc").map(|it| it.to_string()),
+                            require: Some(false),
+                            sub_type: None,
+                            plain_type: Some(String::from("any")),
+                            extends: None,
+                            array: None,
+                        },
+                    );
+                    type_map
+                }
+            };
+
+            return Ok(Some(TypeElement {
+                name: resource_name.clone(),
+                element: TypeElementPart {
+                    description: definition.get("zen/desc").map(|it| it.to_string()),
+                    sub_type: Some(result_keys),
+                    source: Some(!tags.contains(&"zen.fhir/profile-schema")),
+                    extends: normalize_confirms(&confirms, &resource_name),
+                    plain_type: None,
+                },
+            }));
+        }
     }
 
     Ok(None)
 }
-
-/*
-export const parseSymbol = async (
-  box: Box,
-  cache: Cache,
-  symbol: string,
-  includeProfile: boolean,
-): Promise<TypesElement | undefined> => {
-
-  } else if (
-    definition["zen/tags"].includes("zenbox/persistent") &&
-    (definition["validation-type"] === "open" ||
-      definition["values"]?.type === "zen/any")
-  ) {
-    return {
-      desc: definition["zen/desc"],
-      name,
-      ...normalizeConfirms(confirms, name),
-      defs: { "[key:string]": { type: "any", require: true } },
-    };
-  } else if (definition["zen/tags"].includes("zenbox/persistent")) {
-    return {
-      desc: definition["zen/desc"],
-      name,
-      extends: [`Resource<'${name}'>`],
-      defs: await parseMap(
-        box,
-        cache,
-        name,
-        definition.keys,
-        definition.require,
-      ),
-    };
-  } else if (definition["zen/tags"].includes("zen.fhir/structure-schema")) {
-    if (definition?.type && definition["type"] !== "zen/map") {
-      const newName = .thToName(definition["zen/name"]) || "";
-
-      const inlineType = convertPrimitive(definition["type"]);
-
-      if (!cache.primitives.get(newName)) {
-        cache.primitives.set(newName, inlineType);
-      }
-      return {
-        desc: definition["zen/desc"],
-        name: newName,
-        type: inlineType,
-      };
-    } else if (
-      definition["zen/tags"].includes("zen.fhir/structure-schema") &&
-      !definition["type"]
-    ) {
-      if (!definition["zen/name"].split(".")[1].includes("-")) {
-        if (confirms.join(", ") !== name) {
-          return {
-            desc: definition["zen/desc"],
-            name,
-            ...normalizeConfirms(confirms, name),
-          };
-        } else {
-          const newName = .thToName(definition["zen/name"]);
-
-          return {
-            desc: definition["zen/desc"],
-            name: newName,
-            ...normalizeConfirms(confirms, newName),
-          };
-        }
-      } else {
-        // console.log("strange thing", symbol, definition);
-      }
-    } else {
-      if (name === "Resource") {
-        return {
-          desc: definition["zen/desc"],
-          name: "Resource<T>",
-          defs: {
-            ...(await parseMap(
-              box,
-              cache,
-              name,
-              definition.keys,
-              definition.require,
-            )),
-            resourceType: { type: "T" },
-          },
-        };
-      } else if (name === "DomainResource") {
-        return {
-          desc: definition["zen/desc"],
-          name: "DomainResource",
-          defs: await parseMap(
-            box,
-            cache,
-            name,
-            definition.keys,
-            definition.require,
-          ),
-        };
-      }
-      return {
-        desc: definition["zen/desc"],
-        name,
-        ...normalizeConfirms(confirms, name),
-        defs: await parseMap(
-          box,
-          cache,
-          name,
-          definition.keys,
-          definition.require,
-        ),
-      };
-    }
-  } else {
-    return {
-      source: !definition["zen/tags"].includes("zen.fhir/profile-schema"),
-      desc: definition["zen/desc"],
-      name,
-      ...normalizeConfirms(confirms, name),
-      defs: await parseMap(
-        box,
-        cache,
-        name,
-        definition.keys,
-        definition.require,
-      ),
-    };
-  }
-  return;
-};
-*/
 
 pub async fn generate_types(
     box_instance: BoxInstance,
@@ -1019,8 +1119,6 @@ pub async fn generate_types(
             _ => None,
         };
         if definition.is_some() {
-            info!("{:#?}", definition);
-
             result.push(definition.unwrap());
         }
         pb.inc(1);
