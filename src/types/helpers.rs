@@ -96,10 +96,44 @@ pub fn convert_primitive(val: &str) -> String {
     }
 }
 
-pub fn get_definition(definition: &HashMap<String, Value>) -> Option<String> {
-    definition
-        .get("zen/desc")
-        .map(|it| it.as_str().unwrap().to_string())
+pub fn is_persistent_any(definition: &HashMap<String, Value>) -> bool {
+    return (definition.get("validation-type").is_some()
+        && definition.get("validation-type").unwrap().as_str().unwrap() == "open")
+        || (definition.get("values").is_some()
+            && definition.get("values").unwrap().get("type").is_some()
+            && definition
+                .get("values")
+                .unwrap()
+                .get("type")
+                .unwrap()
+                .as_str()
+                .unwrap()
+                == "zen/any");
+}
+
+pub fn is_type_and_not_map(definition: &HashMap<String, Value>) -> bool {
+    return definition.get("type").is_some()
+        && definition.get("type").unwrap().as_str().unwrap() != "zen/map";
+}
+
+pub fn get_description(definition: &HashMap<String, Value>) -> Option<String> {
+    match definition.get("zen/desc") {
+        Some(it) => match it.is_string() {
+            true => Some(it.as_str().unwrap().to_string()),
+            false => None,
+        },
+        None => None,
+    }
+}
+
+pub fn get_description_value(definition: &Value) -> Option<String> {
+    match definition.get("zen/desc") {
+        Some(it) => match it.is_string() {
+            true => Some(it.as_str().unwrap().to_string()),
+            false => None,
+        },
+        None => None,
+    }
 }
 
 pub async fn init_confirms(
@@ -118,7 +152,7 @@ pub async fn init_confirms(
                     .iter()
                     .filter_map(|item| item.as_str())
                     .collect(),
-                &resource_name,
+                resource_name,
             )
             .await
         }

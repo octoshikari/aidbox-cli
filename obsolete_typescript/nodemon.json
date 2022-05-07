@@ -1,5 +1,0 @@
-{
-  "watch": ["lib/**/*", "bin/**/*"],
-  "ext": "ts",
-  "exec": "ts-node bin/aidbox-types-generator.ts"
-}

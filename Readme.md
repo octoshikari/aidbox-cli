@@ -1,8 +1,7 @@
 ## Aidbox CLI tool [UNOFFICIAL]
 
 [![CI](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml)
-
-CLI tools for generation typescript types from Aidbox zen schemas
+[![Code Formatting](https://github.com/octoshikari/aidbox-cli/actions/workflows/checks.yaml/badge.svg)](https://github.com/octoshikari/aidbox-cli/actions/workflows/checks.yaml)
 
 ## Workflow
 
