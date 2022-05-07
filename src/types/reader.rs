@@ -857,17 +857,59 @@ pub async fn generate_types(
 
     let mut result_types: HashMap<String, TypeElementPart> = HashMap::new();
 
-    result
-        .iter()
-        .for_each(|it| match result_types.get(it.name.as_str()) {
-            Some(item) => {
-                // info!("yes {:#?}", it.name)
+    result.iter().for_each(
+        |new_element| match result_types.get(new_element.name.as_str()) {
+            Some(old_element) => {
+                if new_element.element.source {
+                    let merged_types = match old_element.sub_type.is_some() {
+                        true => match new_element.element.sub_type.is_some() {
+                            true => Some(deep_merge_sub_type(
+                                old_element.sub_type.clone().unwrap(),
+                                new_element.element.sub_type.clone().unwrap(),
+                            )),
+                            false => old_element.sub_type.clone(),
+                        },
+                        false => new_element.element.sub_type.clone(),
+                    };
+
+                    result_types.insert(
+                        new_element.name.to_string(),
+                        TypeElementPart {
+                            description: new_element.element.description.clone(),
+                            sub_type: merged_types,
+                            source: true,
+                            extends: new_element.element.extends.clone(),
+                            plain_type: new_element.element.plain_type.clone(),
+                        },
+                    )
+                } else {
+                    let merged_types = match new_element.element.sub_type.is_some() {
+                        true => match new_element.element.sub_type.is_some() {
+                            true => Some(deep_merge_sub_type(
+                                new_element.element.sub_type.clone().unwrap(),
+                                old_element.sub_type.clone().unwrap(),
+                            )),
+                            false => new_element.element.sub_type.clone(),
+                        },
+                        false => old_element.sub_type.clone(),
+                    };
+                    result_types.clone().insert(
+                        new_element.name.to_string(),
+                        TypeElementPart {
+                            description: old_element.description.clone(),
+                            sub_type: merged_types,
+                            source: false,
+                            extends: old_element.extends.clone(),
+                            plain_type: old_element.plain_type.clone(),
+                        },
+                    )
+                };
             }
             None => {
-                result_types.insert(it.name.to_string(), it.element.clone());
-                // info!("yes {:#?}", it)
+                result_types.insert(new_element.name.to_string(), new_element.element.clone());
             }
-        });
+        },
+    );
 
     match cache.save_intermediate_types(&result_types) {
         Ok(..) | Err(..) => {}
@@ -877,4 +919,53 @@ pub async fn generate_types(
         Ok(..) | Err(..) => {}
     }
     Ok(result_types)
+}
+
+fn deep_merge_sub_type(
+    left: HashMap<String, TypeElementSubType>,
+    right: HashMap<String, TypeElementSubType>,
+) -> HashMap<String, TypeElementSubType> {
+    return if left == right {
+        right
+    } else {
+        let mut new_result: HashMap<String, TypeElementSubType> = HashMap::new();
+        for (key, value) in left {
+            match right.get(key.as_str()).is_some() {
+                true => {
+                    let element = right.get(key.as_str()).unwrap().to_owned();
+                    if value == element {
+                        new_result.insert(key, value);
+                    } else {
+                        let merged_types = match element.sub_type.is_some() {
+                            true => match value.sub_type.is_some() {
+                                true => Some(deep_merge_sub_type(
+                                    value.sub_type.clone().unwrap(),
+                                    element.sub_type.clone().unwrap(),
+                                )),
+                                false => element.sub_type.clone(),
+                            },
+                            false => element.sub_type.clone(),
+                        };
+
+                        new_result.insert(
+                            key,
+                            TypeElementSubType {
+                                description: element.description,
+                                require: element.require,
+                                sub_type: merged_types,
+                                plain_type: element.plain_type,
+                                extends: element.extends,
+                                array: element.array,
+                            },
+                        );
+                    }
+                }
+                false => {
+                    //
+                    new_result.insert(key, value);
+                }
+            }
+        }
+        new_result
+    };
 }
