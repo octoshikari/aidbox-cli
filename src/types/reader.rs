@@ -723,6 +723,10 @@ async fn parse_symbol(
                 warn!("Unknown simple schema {} {:#?}", symbol, definition);
                 Ok(None)
             };
+        } else if tags.contains(&"zenbox/persistent") {
+            info!("{:?}", definition);
+        } else {
+            // info!("{:?}", definition);
         }
         // else if tags.contains(&"zenbox/persistent") {
         //     if (definition.get("validation-type").is_some()
@@ -1020,7 +1024,7 @@ pub async fn generate_types(
             }
             None => {
                 result_types.insert(it.name.to_string(), it.element.clone());
-                info!("yes {:#?}", it)
+                // info!("yes {:#?}", it)
             }
         });
 
