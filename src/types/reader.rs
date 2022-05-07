@@ -911,13 +911,6 @@ pub async fn generate_types(
         },
     );
 
-    match cache.save_intermediate_types(&result_types) {
-        Ok(..) | Err(..) => {}
-    }
-
-    match cache.save() {
-        Ok(..) | Err(..) => {}
-    }
     Ok(result_types)
 }
 

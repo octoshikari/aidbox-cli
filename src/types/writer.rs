@@ -1,8 +1,43 @@
-import fs from "fs";
-import { Cache, Types } from "./types";
-import { keyRequired } from "./helpers";
-import prettier from "prettier";
-import { writerLog } from "./logger";
+use crate::types::cache::{Cache, TypeElementPart};
+use log::{error, info};
+use std::collections::HashMap;
+use std::fs;
+
+pub fn write_types(
+    types: HashMap<String, TypeElementPart>,
+    cache: Cache,
+    fhir: bool,
+    output: String,
+) {
+    let mut result: Vec<String> = vec![];
+
+    if fhir {
+        result.push("export type Reference<T extends string> = {\n  reference: `${T}/${string}`;\n  display?: string;\n};\n".to_string());
+    } else {
+        result.push("export type Reference<T = string> = {\n  id: string;\n  resourceType: T;\n  display?: string;\n};\n".to_string());
+    }
+
+    for (key, value) in types {
+        let mut name = key;
+        if name.starts_with("Rpc") || name.as_str() == "boolean" || name.as_str() == "string" {
+            continue;
+        }
+        if name.as_str() == "CodeableConcept" || name.as_str() == "Coding" {
+            name = format!("{}<T = code>", name);
+        }
+        if value.description.is_some() {
+            result.push(format!("/* {} */", value.description.unwrap()));
+        }
+        info!("{:#?}", name);
+    }
+
+    match fs::write(output, result.join("\n")) {
+        Ok(..) => info!("Types was saved on filesystem!"),
+        Err(err) => error!("{:#?}", err),
+    }
+}
+
+/*
 
 export const writeNestedType = (defs: Types = {}, typeName: string) => {
   let type = "";
@@ -44,26 +79,9 @@ export const writer = (
   fhirReference = false,
   output: string,
 ) => {
-  let types: string;
-  if (fhirReference) {
-    types =
-      "export type Reference<T extends string> = {\n  reference: `${T}/${string}`;\n  display?: string;\n};\n\n";
-  } else {
-    types =
-      "export type Reference<T = string> = {\n  id: string;\n  resourceType: T;\n  display?: string;\n};\n\n";
-  }
-  //eslint-disable-next-line
   for (let [name, element] of Object.entries(schema)) {
-    if (name.startsWith("Rpc") || name === "boolean" || name === "string") {
-      continue;
-    }
-    if (name === "CodeableConcept" || name === "Coding") {
-      name = `${name}<T = code>`;
-    }
 
-    if (element.desc) {
-      types += `/* ${element.desc} */\n`;
-    }
+
     if (element.type && typeof element.type === "string") {
       types += `export type ${name} = ${element.type};\n`;
     } else if (!element.defs && !element.type) {
@@ -93,3 +111,5 @@ export const writer = (
   /* eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access */
   fs.writeFileSync(output, prettier.format(types, { parser: "typescript" }));
 };
+
+*/

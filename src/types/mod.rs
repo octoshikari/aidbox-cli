@@ -3,6 +3,7 @@ mod cache;
 mod generate;
 mod helpers;
 mod reader;
+mod writer;
 
 use clap::{arg, Arg, ArgMatches, Command};
 
@@ -32,11 +33,15 @@ pub fn types_command() -> Command<'static> {
                         .short('i')
                         .takes_value(false)
                         .help("Include profiles"),
-                    Arg::new("OUTPUT")
+                    Arg::new("output")
                         .long("output")
                         .short('o')
                         .help("Output file")
                         .default_value("aidbox-generated-types.ts"),
+                    Arg::new("fhir")
+                        .long("fhir")
+                        .help("FHIR related type")
+                        .takes_value(false),
                 ]),
         )
         .subcommand(
