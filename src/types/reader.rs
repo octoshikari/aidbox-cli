@@ -1,8 +1,8 @@
 use crate::types::cache::{Cache, TypeElement, TypeElementPart, TypeElementSubType};
 use crate::types::helpers::{
     convert_primitive, get_confirms, get_description, get_description_value, get_name, get_symbol,
-    get_value_set, init_confirms, is_persistent_any, is_type_and_not_map, normalize_confirms,
-    wrap_key, zen_path_to_name,
+    get_value_set, init_confirms, init_confirms_value, init_reference_confirms_value,
+    is_persistent_any, is_type_and_not_map, normalize_confirms, wrap_key, zen_path_to_name,
 };
 use crate::types::r#box::BoxInstance;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -39,16 +39,7 @@ async fn parse_vector(
         .await?;
 
         if every.get("confirms").is_some() {
-            let confirms = match every.get("confirms") {
-                Some(it) => it
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .filter_map(|item| item.as_str())
-                    .collect(),
-                _ => vec![],
-            };
-            let confirm = get_confirms(box_instance, cache, confirms, resource_name).await?;
+            let confirm = init_confirms_value(box_instance, cache, resource_name, every).await?;
 
             let single_confirm = confirm.get(0);
             if single_confirm.is_some() {
@@ -152,20 +143,8 @@ async fn parse_vector(
         .map(|it| it.get("refers"))
         .is_some()
     {
-        let sub_confirms: Vec<_> = every
-            .get("zen.fhir/reference")
-            .unwrap()
-            .as_object()
-            .unwrap()
-            .get("refers")
-            .unwrap()
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|it| it.as_str().unwrap())
-            .collect();
-
-        let refers = get_confirms(box_instance, cache, sub_confirms, resource_name).await?;
+        let refers =
+            init_reference_confirms_value(box_instance, cache, resource_name, every).await?;
         return Ok((
             false,
             Some(match refers.is_empty() {
@@ -235,21 +214,12 @@ async fn parse_map(
 
             let plain_type = match values.is_empty() {
                 true => {
-                    let confirms = match value.get("confirms") {
-                        Some(it) => it
-                            .as_array()
-                            .unwrap()
-                            .iter()
-                            .filter_map(|item| item.as_str())
-                            .collect(),
-                        _ => vec![],
-                    };
-                    let res = match get_confirms(box_instance, cache, confirms, resource_name).await
-                    {
-                        Ok(it) => Some(it.join(" | ")),
-                        Err(..) => Some("any".to_string()),
-                    };
-                    res
+                    let confirms =
+                        init_confirms_value(box_instance, cache, resource_name, value).await?;
+                    match confirms.is_empty() {
+                        false => Some(confirms.join(" | ")),
+                        true => Some("any".to_string()),
+                    }
                 }
                 _ => Some(
                     values
@@ -263,9 +233,7 @@ async fn parse_map(
             result_map.insert(
                 wrap_key(key),
                 TypeElementSubType {
-                    description: value
-                        .get("zen/desc")
-                        .map(|it| it.as_str().unwrap().to_string()),
+                    description: get_description_value(value),
                     require: required.contains(key),
                     sub_type: None,
                     plain_type,
@@ -278,9 +246,7 @@ async fn parse_map(
                 result_map.insert(
                     wrap_key(key),
                     TypeElementSubType {
-                        description: value
-                            .get("zen/desc")
-                            .map(|it| it.as_str().unwrap().to_string()),
+                        description: get_description_value(value),
                         require: required.contains(key),
                         sub_type: None,
                         plain_type: Some("boolean".to_string()),
@@ -304,9 +270,7 @@ async fn parse_map(
                 result_map.insert(
                     wrap_key(key),
                     TypeElementSubType {
-                        description: value
-                            .get("zen/desc")
-                            .map(|it| it.as_str().unwrap().to_string()),
+                        description: get_description_value(value),
                         require: required.contains(key),
                         sub_type: None,
                         plain_type: Some("dateTime".to_string()),
@@ -318,9 +282,7 @@ async fn parse_map(
                 result_map.insert(
                     wrap_key(key),
                     TypeElementSubType {
-                        description: value
-                            .get("zen/desc")
-                            .map(|it| it.as_str().unwrap().to_string()),
+                        description: get_description_value(value),
                         require: required.contains(key),
                         sub_type: None,
                         plain_type: Some("integer".to_string()),
@@ -350,9 +312,7 @@ async fn parse_map(
                 result_map.insert(
                     wrap_key(key),
                     TypeElementSubType {
-                        description: value
-                            .get("zen/desc")
-                            .map(|it| it.as_str().unwrap().to_string()),
+                        description: get_description_value(value),
                         require: required.contains(key),
                         sub_type: None,
                         plain_type: Some(target),
@@ -374,9 +334,7 @@ async fn parse_map(
                 result_map.insert(
                     wrap_key(key),
                     TypeElementSubType {
-                        description: value
-                            .get("zen/desc")
-                            .map(|it| it.as_str().unwrap().to_string()),
+                        description: get_description_value(value),
                         require: required.contains(key),
                         sub_type,
                         plain_type,
@@ -390,9 +348,7 @@ async fn parse_map(
                         result_map.insert(
                             wrap_key(key),
                             TypeElementSubType {
-                                description: value
-                                    .get("zen/desc")
-                                    .map(|it| it.as_str().unwrap().to_string()),
+                                description: get_description_value(value),
                                 require: required.contains(key),
                                 sub_type: None,
                                 plain_type: Some("any".to_string()),
@@ -426,9 +382,7 @@ async fn parse_map(
                         result_map.insert(
                             wrap_key(key),
                             TypeElementSubType {
-                                description: value
-                                    .get("zen/desc")
-                                    .map(|it| it.as_str().unwrap().to_string()),
+                                description: get_description_value(value),
                                 require: required.contains(key),
                                 sub_type: Some(sub_type),
                                 plain_type: None,
@@ -440,9 +394,7 @@ async fn parse_map(
                         result_map.insert(
                             wrap_key(key),
                             TypeElementSubType {
-                                description: value
-                                    .get("zen/desc")
-                                    .map(|it| it.as_str().unwrap().to_string()),
+                                description: get_description_value(value),
                                 require: required.contains(key),
                                 sub_type: None,
                                 plain_type: Some("any".to_string()),
@@ -485,9 +437,7 @@ async fn parse_map(
                         result_map.insert(
                             wrap_key(key),
                             TypeElementSubType {
-                                description: value
-                                    .get("zen/desc")
-                                    .map(|it| it.as_str().unwrap().to_string()),
+                                description: get_description_value(value),
                                 require: required.contains(key),
                                 sub_type: None,
                                 plain_type: Some("Record<string,any>".to_string()),
@@ -509,9 +459,7 @@ async fn parse_map(
                         result_map.insert(
                             wrap_key(key),
                             TypeElementSubType {
-                                description: value
-                                    .get("zen/desc")
-                                    .map(|it| it.as_str().unwrap().to_string()),
+                                description: get_description_value(value),
                                 require: required.contains(key),
                                 sub_type: Some(sub_type),
                                 plain_type: None,
@@ -524,9 +472,7 @@ async fn parse_map(
                     result_map.insert(
                         wrap_key(key),
                         TypeElementSubType {
-                            description: value
-                                .get("zen/desc")
-                                .map(|it| it.as_str().unwrap().to_string()),
+                            description: get_description_value(value),
                             require: required.contains(key),
                             sub_type: None,
                             plain_type: Some("any".to_string()),
@@ -546,26 +492,13 @@ async fn parse_map(
                 .map(|it| it.get("refers"))
                 .is_some()
             {
-                let sub_confirms: Vec<_> = value
-                    .get("zen.fhir/reference")
-                    .unwrap()
-                    .as_object()
-                    .unwrap()
-                    .get("refers")
-                    .unwrap()
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|it| it.as_str().unwrap())
-                    .collect();
-
-                let refers = get_confirms(box_instance, cache, sub_confirms, resource_name).await?;
+                let refers =
+                    init_reference_confirms_value(box_instance, cache, resource_name, value)
+                        .await?;
                 result_map.insert(
                     wrap_key(key),
                     TypeElementSubType {
-                        description: value
-                            .get("zen/desc")
-                            .map(|it| it.as_str().unwrap().to_string()),
+                        description: get_description_value(value),
                         require: required.contains(key),
                         sub_type: None,
                         plain_type: Some(match refers.is_empty() {
@@ -577,24 +510,13 @@ async fn parse_map(
                     },
                 );
             } else {
-                let sub_confirms_vec: Vec<_> = value
-                    .get("confirms")
-                    .unwrap()
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|it| it.as_str().unwrap())
-                    .collect();
-
                 let sub_confirms =
-                    get_confirms(box_instance, cache, sub_confirms_vec, resource_name).await?;
+                    init_confirms_value(box_instance, cache, resource_name, value).await?;
 
                 result_map.insert(
                     wrap_key(key),
                     TypeElementSubType {
-                        description: value
-                            .get("zen/desc")
-                            .map(|it| it.as_str().unwrap().to_string()),
+                        description: get_description_value(value),
                         require: required.contains(key),
                         sub_type: None,
                         plain_type: Some(match sub_confirms.is_empty() {
@@ -610,9 +532,7 @@ async fn parse_map(
             result_map.insert(
                 wrap_key(key),
                 TypeElementSubType {
-                    description: value
-                        .get("zen/desc")
-                        .map(|it| it.as_str().unwrap().to_string()),
+                    description: get_description_value(value),
                     require: required.contains(key),
                     sub_type: None,
                     plain_type: Some("any".to_string()),
@@ -817,7 +737,7 @@ async fn parse_symbol(
             } else {
                 let mut keys =
                     prepare_keys(box_instance, cache, &resource_name, &definition).await?;
-                if resource_name == "Resource" {
+                return if resource_name == "Resource" {
                     keys.insert(
                         "resourceType".to_string(),
                         TypeElementSubType {
@@ -829,7 +749,7 @@ async fn parse_symbol(
                             array: false,
                         },
                     );
-                    return Ok(Some(TypeElement {
+                    Ok(Some(TypeElement {
                         name: String::from("Resource<T>"),
                         element: TypeElementPart {
                             description: get_description(&definition),
@@ -838,9 +758,9 @@ async fn parse_symbol(
                             extends: None,
                             plain_type: None,
                         },
-                    }));
+                    }))
                 } else if resource_name == "DomainResource" {
-                    return Ok(Some(TypeElement {
+                    Ok(Some(TypeElement {
                         name: String::from("DomainResource"),
                         element: TypeElementPart {
                             description: get_description(&definition),
@@ -849,9 +769,9 @@ async fn parse_symbol(
                             extends: None,
                             plain_type: None,
                         },
-                    }));
+                    }))
                 } else {
-                    return Ok(Some(TypeElement {
+                    Ok(Some(TypeElement {
                         name: resource_name.clone(),
                         element: TypeElementPart {
                             description: get_description(&definition),
@@ -860,8 +780,8 @@ async fn parse_symbol(
                             extends: normalize_confirms(&confirms, &resource_name),
                             plain_type: None,
                         },
-                    }));
-                }
+                    }))
+                };
             }
         } else {
             return Ok(Some(type_ok(

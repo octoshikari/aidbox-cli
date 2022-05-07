@@ -160,6 +160,52 @@ pub async fn init_confirms(
     }
 }
 
+pub async fn init_reference_confirms_value(
+    box_instance: &BoxInstance,
+    cache: &mut Cache,
+    resource_name: &str,
+    definition: &Value,
+) -> Result<Vec<String>, Box<dyn Error>> {
+    let sub_confirms: Vec<_> = definition
+        .get("zen.fhir/reference")
+        .unwrap()
+        .as_object()
+        .unwrap()
+        .get("refers")
+        .unwrap()
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|it| it.as_str().unwrap())
+        .collect();
+
+    get_confirms(box_instance, cache, sub_confirms, resource_name).await
+}
+
+pub async fn init_confirms_value(
+    box_instance: &BoxInstance,
+    cache: &mut Cache,
+    resource_name: &str,
+    definition: &Value,
+) -> Result<Vec<String>, Box<dyn Error>> {
+    match definition.get("confirms") {
+        Some(it) => {
+            get_confirms(
+                box_instance,
+                cache,
+                it.as_array()
+                    .unwrap()
+                    .iter()
+                    .filter_map(|item| item.as_str())
+                    .collect(),
+                resource_name,
+            )
+            .await
+        }
+        _ => Ok(vec![]),
+    }
+}
+
 pub fn normalize_confirms(confirms: &[String], resource_name: &str) -> Option<Vec<String>> {
     return if confirms.is_empty() || (confirms.len() == 1 && confirms[0].as_str() == resource_name)
     {
@@ -222,6 +268,13 @@ pub fn get_name(element: &HashMap<String, Value>) -> String {
     zen_path_to_name(&element["zen/name"])
 }
 
+pub fn key_required(key: String, require: bool) -> String {
+    match require {
+        true => format!("{}?", key),
+        false => key,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -248,6 +301,15 @@ mod tests {
             assert_eq!(
                 result,
                 capitalize(result.as_str())
+            )
+        }
+        #[test]
+        fn test_key_required(s in "[a-z]{1,10}", require: bool) {
+            let result = key_required(s.clone(), require);
+
+            assert_eq!(
+                result,
+                key_required(s, require)
             )
         }
     }
