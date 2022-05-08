@@ -28,10 +28,9 @@ fn main() {
                     let level_style = buf.default_level_style(record.level());
                     writeln!(
                         buf,
-                        "[{} {} {}]: {}",
+                        "[{} {}]: {}",
                         Local::now().format("%Y-%m-%d %H:%M:%S"),
                         level_style.value(record.level()),
-                        record.module_path().as_ref().unwrap(),
                         record.args()
                     )
                 })

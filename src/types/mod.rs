@@ -16,7 +16,7 @@ pub fn types_command() -> Command<'static> {
                 .about("Generate types from zen schema")
                 .arg_required_else_help(true)
                 .args(vec![
-                    arg!(-b --box <URL> "Aibox URL"),
+                    arg!(-b --box <URL> "Aidbox URL"),
                     arg!(-u --user <USERNAME> "Aidbox basic auth user"),
                     arg!(-s --secret <SECRET> "Aidbox basic auth secret"),
                     Arg::new("cache-folder")
@@ -45,10 +45,37 @@ pub fn types_command() -> Command<'static> {
                 ]),
         )
         .subcommand(
-            Command::new("clear-cache")
-                .about("Clear folder contains cache")
-                .arg_required_else_help(true)
-                .args(vec![arg!(--folder <PATH> "folder contained cache")]),
+            Command::new("cache")
+                .about("Work with cache items")
+                .subcommand(
+                    Command::new("rm")
+                        .about("Remove cache items")
+                        .arg_required_else_help(true)
+                        .args(vec![
+                            Arg::new("folder")
+                                .long("folder")
+                                .short('f')
+                                .help("Cache folder")
+                                .default_value(".local-cache"),
+                            Arg::new("all")
+                                .long("all")
+                                .help("Remove all cache items")
+                                .takes_value(false),
+                            Arg::new("key")
+                                .long("key")
+                                .conflicts_with("all")
+                                .short('k')
+                                .help("Remove specific key item")
+                                .possible_values(&[
+                                    "confirms",
+                                    "primitives",
+                                    "schema",
+                                    "valuesets",
+                                    "symbols",
+                                ]),
+                        ]),
+                )
+                .arg_required_else_help(true),
         );
 }
 
@@ -56,7 +83,7 @@ pub async fn types_match(sub_matches: &ArgMatches) {
     let types_command = sub_matches.subcommand().unwrap_or(("help", sub_matches));
     match types_command {
         ("generate", sub_matches) => generate::generate(sub_matches).await,
-        ("clear-cache", sub_matches) => cache::clear_cache(sub_matches),
+        ("cache", sub_matches) => cache::cache_command(sub_matches),
         (name, _) => {
             unreachable!("Unsupported subcommand `{}`", name)
         }

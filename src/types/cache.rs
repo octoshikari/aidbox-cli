@@ -154,14 +154,51 @@ pub fn create_cache(cache_enabled: bool, cache_path: String) -> Result<Cache, Er
     })
 }
 
-pub fn clear_cache(sub_matches: &ArgMatches) {
-    match fs::remove_dir_all(sub_matches.value_of("folder").unwrap()) {
-        Ok(..) => info!("Cache was cleared"),
-        Err(error) => match error.kind() {
-            std::io::ErrorKind::NotFound => error!("{}", error),
-            other_error => {
-                panic!("Problem deleting cache folder: {:?}", other_error)
-            }
-        },
+fn clear_cache(sub_matches: &ArgMatches) {
+    let all = sub_matches.is_present("all");
+    let key = sub_matches.value_of("key").map(str::to_string);
+
+    let cache_folder = sub_matches.value_of("folder").unwrap();
+    if all {
+        match fs::remove_dir_all(cache_folder) {
+            Ok(..) => info!("Cache folder has been removed"),
+            Err(error) => match error.kind() {
+                std::io::ErrorKind::NotFound => error!("{}", error),
+                other_error => {
+                    panic!("Problem deleting cache folder: {:?}", other_error)
+                }
+            },
+        }
+    } else if key.is_some() {
+        match fs::remove_file(format!(
+            "{}/{}.json",
+            cache_folder,
+            key.clone().unwrap().as_str()
+        )) {
+            Ok(..) => info!("Cache item - {} - has been removed", key.unwrap().as_str()),
+            Err(error) => match error.kind() {
+                std::io::ErrorKind::NotFound => error!(
+                    "Path: {} \n {}",
+                    format!("{}/{}.json", cache_folder, key.unwrap().as_str()),
+                    error
+                ),
+                other_error => {
+                    panic!("Problem removing cache item: {:?}", other_error)
+                }
+            },
+        }
+    } else {
+        error!("Please provide --key arg or -all");
+    }
+}
+
+pub fn cache_command(sub_matches: &ArgMatches) {
+    let types_command = sub_matches.subcommand().unwrap_or(("help", sub_matches));
+
+    match types_command {
+        ("rm", sub_matches) => clear_cache(sub_matches),
+        (name, _) => {
+            unreachable!("Unsupported subcommand `{}`", name)
+        }
     }
 }
