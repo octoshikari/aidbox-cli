@@ -1,4 +1,4 @@
-use log::{error, info};
+use log::{error, info, warn};
 use regex::RegexSet;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
 use reqwest::Client;
@@ -76,7 +76,7 @@ impl BoxInstance {
                 let json = fs::read_to_string(format!("{}/symbols.json", cache_path))?;
                 let data: Vec<String> = serde_json::from_str(&json)?;
                 if !data.is_empty() {
-                    info!("Cached symbols loaded");
+                    warn!("Cached symbols will be used!!!");
 
                     return Ok(data);
                 } else {

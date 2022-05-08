@@ -269,9 +269,12 @@ pub fn get_name(element: &HashMap<String, Value>) -> String {
 }
 
 pub fn key_required(key: String, require: bool) -> String {
+    if key.as_str() == "[key: string]" {
+        return key;
+    }
     match require {
-        true => format!("{}?", key),
-        false => key,
+        true => key,
+        false => format!("{}?", key),
     }
 }
 

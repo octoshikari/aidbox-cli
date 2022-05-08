@@ -1,7 +1,67 @@
-use crate::types::cache::{Cache, TypeElementPart};
+use crate::types::cache::{Cache, TypeElementPart, TypeElementSubType};
+use crate::types::helpers::key_required;
 use log::{error, info};
 use std::collections::HashMap;
 use std::fs;
+
+fn write_nested_type(
+    map: HashMap<String, TypeElementSubType>,
+    type_name: &str,
+    result: &mut Vec<String>,
+) {
+    for (key, value) in map {
+        if value.description.is_some() {
+            result.push(format!("/* {} */", value.description.unwrap()));
+        }
+        if value.plain_type.is_some() {
+            if type_name == "CodeableConcept<T = code>"
+                && value.plain_type.clone().unwrap().as_str() == "Array<Coding>"
+            {
+                result.push(format!(
+                    "{}: Array<Coding<T>>;",
+                    key_required(key, value.require)
+                ));
+            } else if type_name == "Coding<T = code>" && key.as_str() == "code" {
+                result.push(format!("{}: T;", key_required(key, value.require)));
+            } else {
+                result.push(format!(
+                    "{}: {};",
+                    key_required(key, value.require),
+                    value.plain_type.unwrap()
+                ));
+            }
+        } else if value.array {
+            result.push(format!(
+                "{}: Array<{}",
+                key_required(key, value.require),
+                match value.extends.is_some() {
+                    true => match value.extends.clone().unwrap().is_empty() {
+                        true => "{".to_string(),
+                        false => format!("{} & {{", value.extends.unwrap().join(" & ")),
+                    },
+                    false => "{".to_string(),
+                }
+            ));
+            write_nested_type(value.sub_type.unwrap(), type_name, result);
+            result.push("}>;".to_string())
+        } else if value.extends.is_some() {
+            result.push(format!(
+                "{}: Array<{}",
+                key_required(key, value.require),
+                match value.extends.clone().unwrap().is_empty() {
+                    false => format!("{} & {{", value.extends.unwrap().join(" & ")),
+                    true => "{".to_string(),
+                }
+            ));
+            write_nested_type(value.sub_type.unwrap(), type_name, result);
+            result.push("}>;".to_string())
+        } else {
+            result.push(format!("{}: {{", key_required(key, value.require)));
+            write_nested_type(value.sub_type.unwrap(), type_name, result);
+            result.push("};".to_string())
+        }
+    }
+}
 
 pub fn write_types(
     types: HashMap<String, TypeElementPart>,
@@ -28,7 +88,51 @@ pub fn write_types(
         if value.description.is_some() {
             result.push(format!("/* {} */", value.description.unwrap()));
         }
-        info!("{:#?}", name);
+        if value.plain_type.is_some() {
+            result.push(format!(
+                "export type {} = {};",
+                name.clone(),
+                value.plain_type.unwrap()
+            ))
+        } else if value.sub_type.is_none() && value.plain_type.is_none() {
+            if value.extends.clone().is_some()
+                && !value.extends.clone().unwrap().len() == 1
+                && cache
+                    .primitives
+                    .get(value.extends.clone().unwrap().get(0).unwrap())
+                    .is_some()
+            {
+                result.push(format!(
+                    "export type {} = {};",
+                    name.clone(),
+                    cache
+                        .primitives
+                        .get(value.extends.clone().unwrap().get(0).unwrap())
+                        .unwrap()
+                ))
+            } else if value.extends.clone().is_some() {
+                result.push(format!(
+                    "export type {} = {};",
+                    name.clone(),
+                    value.extends.unwrap().join(" & ")
+                ))
+            }
+        } else {
+            result.push(format!(
+                "export type {} = {}",
+                name.clone(),
+                match value.extends {
+                    Some(mut it) => {
+                        it.sort_by_key(|a| a.to_lowercase());
+                        format!("{} & {{ ", it.join(" & "))
+                    }
+                    None => "{ ".to_string(),
+                }
+            ));
+            write_nested_type(value.sub_type.unwrap(), &name, &mut result);
+
+            result.push("};\n".to_string());
+        }
     }
 
     match fs::write(output, result.join("\n")) {
@@ -36,80 +140,3 @@ pub fn write_types(
         Err(err) => error!("{:#?}", err),
     }
 }
-
-/*
-
-export const writeNestedType = (defs: Types = {}, typeName: string) => {
-  let type = "";
-  for (const [key, value] of Object.entries(defs)) {
-    if (value.desc) {
-      type += `/* ${value.desc} */\n`;
-    }
-    if (typeof value.type === "string") {
-      if (
-        typeName === `CodeableConcept<T = code>` &&
-        value.type === "Array<Coding>"
-      ) {
-        type += `${key}: Array<Coding<T>>;\n`;
-      } else if (typeName === `Coding<T = code>` && key === "code") {
-        type += `${keyRequired(key, value.require)}: T;\n`;
-      } else {
-        type += `${keyRequired(key, value.require)}: ${value.type};\n`;
-      }
-    } else if (value?.array) {
-      type += `${keyRequired(key, value.require)}: Array<${
-        value?.extends ? value.extends.join(" & ") + " & " : ""
-      } {\n${writeNestedType(value.type, typeName)}}>;\n`;
-    } else if (value?.extends) {
-      type += `${keyRequired(key, value.require)}: ${
-        value.extends.join(" & ") + " & "
-      } {\n${writeNestedType(value.type, typeName)}};\n`;
-    } else {
-      type += `${keyRequired(key, value.require)}: {\n`;
-      type += `${writeNestedType(value.type, typeName)}`;
-      type += `}\n`;
-    }
-  }
-  return type;
-};
-
-export const writer = (
-  schema: Types,
-  cache: Cache,
-  fhirReference = false,
-  output: string,
-) => {
-  for (let [name, element] of Object.entries(schema)) {
-
-
-    if (element.type && typeof element.type === "string") {
-      types += `export type ${name} = ${element.type};\n`;
-    } else if (!element.defs && !element.type) {
-      if (
-        element.extends?.length === 1 &&
-        cache.primitives.get(element.extends[0])
-      ) {
-        const fromCache = cache.primitives.get(element.extends[0]);
-        if (fromCache) {
-          types += `export type ${name} = ${fromCache}\n`;
-        }
-      } else if (element.extends) {
-        types += `export type ${name} = ${element.extends.join(" & ")};\n`;
-      }
-    } else {
-      types += `export type ${name} = ${
-        (typeof element.extends === "string" && element.extends !== "") ||
-        (element.extends && element.extends?.length > 0)
-          ? element.extends.join(" & ") + " & "
-          : ""
-      }{\n`;
-      types += writeNestedType(element.defs, name);
-      types += `}\n\n`;
-    }
-  }
-  writerLog("Write file by path %s", output);
-  /* eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument,@typescript-eslint/no-unsafe-member-access */
-  fs.writeFileSync(output, prettier.format(types, { parser: "typescript" }));
-};
-
-*/

@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::Error;
 use std::path::Path;
 
-#[derive(Serialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Clone, Eq, PartialEq)]
 pub struct TypeElementSubType {
     pub description: Option<String>,
     pub require: bool,
@@ -19,16 +19,17 @@ pub struct TypeElementSubType {
     pub array: bool,
 }
 
-#[derive(Serialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Serialize, Clone, Eq, PartialEq)]
 pub struct TypeElementPart {
     pub description: Option<String>,
     pub sub_type: Option<HashMap<String, TypeElementSubType>>,
     pub source: bool,
+    pub profile: bool,
     pub extends: Option<Vec<String>>,
     pub plain_type: Option<String>,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize)]
 pub struct TypeElement {
     pub name: String,
     pub element: TypeElementPart,

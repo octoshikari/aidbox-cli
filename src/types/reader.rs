@@ -48,7 +48,7 @@ async fn parse_vector(
                         Ok((false, Some("Array<code>".to_string()), None))
                     } else {
                         let target_value: Vec<_> =
-                            values.iter().map(|it| format!("'{}'", it)).collect();
+                            values.iter().map(|it| format!("\"{}\"", it)).collect();
                         return Ok((
                             false,
                             Some(format!("Array<{}>", target_value.join(" | "))),
@@ -60,7 +60,7 @@ async fn parse_vector(
                         Ok((false, Some("Array<CodeableConcept>".to_string()), None))
                     } else {
                         let target_value: Vec<_> =
-                            values.iter().map(|it| format!("'{}'", it)).collect();
+                            values.iter().map(|it| format!("\"{}\"", it)).collect();
                         return Ok((
                             false,
                             Some(format!(
@@ -75,13 +75,10 @@ async fn parse_vector(
                         Ok((false, Some("Array<Coding>".to_string()), None))
                     } else {
                         let target_value: Vec<_> =
-                            values.iter().map(|it| format!("'{}'", it)).collect();
+                            values.iter().map(|it| format!("\"{}\"", it)).collect();
                         return Ok((
                             false,
-                            Some(format!(
-                                "Array<CodeableCoding<{}>>",
-                                target_value.join(" | ")
-                            )),
+                            Some(format!("Array<Coding<{}>>", target_value.join(" | "))),
                             None,
                         ));
                     }
@@ -103,7 +100,7 @@ async fn parse_vector(
                         .as_array()
                         .unwrap()
                         .iter()
-                        .map(|item| format!("'{}'", item.get("value").unwrap().as_str().unwrap()))
+                        .map(|item| format!("\"{}\"", item.get("value").unwrap().as_str().unwrap()))
                         .collect();
                     if sub_target.is_empty() {
                         "Array<string>".to_string()
@@ -224,7 +221,7 @@ async fn parse_map(
                 _ => Some(
                     values
                         .iter()
-                        .map(|it| format!("'{}'", it))
+                        .map(|it| format!("\"{}\"", it))
                         .collect::<Vec<_>>()
                         .join(" | "),
                 ),
@@ -298,7 +295,7 @@ async fn parse_map(
                             .unwrap()
                             .iter()
                             .map(|item| {
-                                format!("'{}'", item.get("value").unwrap().as_str().unwrap())
+                                format!("\"{}\"", item.get("value").unwrap().as_str().unwrap())
                             })
                             .collect();
                         if sub_target.is_empty() {
@@ -633,6 +630,7 @@ async fn parse_symbol(
                                     .await?,
                             ),
                             source: true,
+                            profile: false,
                             extends: normalize_confirms(&confirms, &resource_name),
                             plain_type: None,
                         },
@@ -662,6 +660,7 @@ async fn parse_symbol(
                         description: get_description(&definition),
                         sub_type: Some(sub_type),
                         source: true,
+                        profile: false,
                         extends: normalize_confirms(&confirms, &resource_name),
                         plain_type: None,
                     },
@@ -675,7 +674,8 @@ async fn parse_symbol(
                             prepare_keys(box_instance, cache, &resource_name, &definition).await?,
                         ),
                         source: true,
-                        extends: Some(vec![format!("Resource<{}>", resource_name)]),
+                        profile: false,
+                        extends: Some(vec![format!("Resource<'{}'>", resource_name)]),
                         plain_type: None,
                     },
                 }))
@@ -696,6 +696,7 @@ async fn parse_symbol(
                         description: get_description(&definition),
                         sub_type: None,
                         source: true,
+                        profile: false,
                         extends: None,
                         plain_type: Some(primitive_type),
                     },
@@ -717,6 +718,7 @@ async fn parse_symbol(
                                 description: get_description(&definition),
                                 sub_type: None,
                                 source: true,
+                                profile: false,
                                 extends: normalize_confirms(&confirms, &resource_name),
                                 plain_type: None,
                             },
@@ -728,6 +730,7 @@ async fn parse_symbol(
                                 description: get_description(&definition),
                                 sub_type: None,
                                 source: true,
+                                profile: false,
                                 extends: normalize_confirms(&confirms, &resource_name),
                                 plain_type: None,
                             },
@@ -755,6 +758,7 @@ async fn parse_symbol(
                             description: get_description(&definition),
                             sub_type: Some(keys),
                             source: true,
+                            profile: false,
                             extends: None,
                             plain_type: None,
                         },
@@ -767,6 +771,7 @@ async fn parse_symbol(
                             sub_type: Some(keys),
                             source: true,
                             extends: None,
+                            profile: false,
                             plain_type: None,
                         },
                     }))
@@ -777,6 +782,7 @@ async fn parse_symbol(
                             description: get_description(&definition),
                             sub_type: Some(keys),
                             source: true,
+                            profile: false,
                             extends: normalize_confirms(&confirms, &resource_name),
                             plain_type: None,
                         },
@@ -788,6 +794,7 @@ async fn parse_symbol(
                 resource_name.clone(),
                 definition.clone(),
                 confirms,
+                tags.contains(&"zen.fhir/profile-schema"),
                 prepare_keys(box_instance, cache, resource_name.as_str(), &definition).await?,
             )));
         }
@@ -799,6 +806,7 @@ fn type_ok(
     resource_name: String,
     definition: HashMap<String, Value>,
     confirms: Vec<String>,
+    profile: bool,
     keys: HashMap<String, TypeElementSubType>,
 ) -> TypeElement {
     TypeElement {
@@ -807,6 +815,7 @@ fn type_ok(
             description: get_description(&definition),
             sub_type: Some(keys),
             source: true,
+            profile,
             extends: normalize_confirms(&confirms, &resource_name),
             plain_type: None,
         },
@@ -860,7 +869,7 @@ pub async fn generate_types(
     result.iter().for_each(
         |new_element| match result_types.get(new_element.name.as_str()) {
             Some(old_element) => {
-                if new_element.element.source {
+                if new_element.element.profile {
                     let merged_types = match old_element.sub_type.is_some() {
                         true => match new_element.element.sub_type.is_some() {
                             true => Some(deep_merge_sub_type(
@@ -878,6 +887,7 @@ pub async fn generate_types(
                             description: new_element.element.description.clone(),
                             sub_type: merged_types,
                             source: true,
+                            profile: new_element.element.profile,
                             extends: new_element.element.extends.clone(),
                             plain_type: new_element.element.plain_type.clone(),
                         },
@@ -899,6 +909,7 @@ pub async fn generate_types(
                             description: old_element.description.clone(),
                             sub_type: merged_types,
                             source: false,
+                            profile: old_element.profile,
                             extends: old_element.extends.clone(),
                             plain_type: old_element.plain_type.clone(),
                         },
