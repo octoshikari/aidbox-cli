@@ -1,8 +1,10 @@
 use crate::types::cache::{Cache, TypeElementPart, TypeElementSubType};
 use crate::types::helpers::key_required;
-use log::{error, info};
+use dprint_plugin_typescript::configuration::*;
+use dprint_plugin_typescript::*;
 use std::collections::HashMap;
 use std::fs;
+use std::path::PathBuf;
 
 fn write_nested_type(
     map: HashMap<String, TypeElementSubType>,
@@ -134,9 +136,15 @@ pub fn write_types(
             result.push("};\n".to_string());
         }
     }
+    let result_types = result.join("\n");
 
-    match fs::write(output, result.join("\n")) {
-        Ok(..) => info!("Types was saved on filesystem!"),
-        Err(err) => error!("{:#?}", err),
-    }
+    let config = ConfigurationBuilder::new()
+        .line_width(80)
+        .quote_style(QuoteStyle::PreferSingle)
+        .build();
+
+    let formatted_result = format_text(&PathBuf::from(output.clone()), &result_types, &config)
+        .expect("Could not parse...");
+    fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
+        .expect("Expected to write to the file.");
 }
