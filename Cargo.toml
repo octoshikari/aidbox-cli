@@ -1,8 +1,8 @@
 [package]
-name = "aidbox-cli"
-version = "0.2.0"
+name = "aidbox"
+version = "0.3.0"
 edition = "2021"
-authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded"]
+authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 keywords = ["cli", "aidbox"]
@@ -31,6 +31,7 @@ async-recursion = "1.0.0"
 dprint-development = "0.9.1"
 dprint-plugin-typescript = "0.68.2"
 dprint-core = "0.56.0"
+dirs = "4.0.0"
 
 [dev-dependencies]
 proptest = "1.0.0"

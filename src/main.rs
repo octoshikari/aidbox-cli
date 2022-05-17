@@ -1,3 +1,4 @@
+mod r#box;
 mod devbox;
 mod types;
 
@@ -7,14 +8,16 @@ use log::LevelFilter;
 use std::io::Write;
 
 fn cli() -> Command<'static> {
-    Command::new("aidbox-cli")
+    Command::new("aidbox")
         .about("Aidbox CLI tool")
+        .version(env!("CARGO_PKG_VERSION"))
         .subcommand_required(true)
         .arg_required_else_help(true)
         .allow_external_subcommands(true)
         .allow_invalid_utf8_for_external_subcommands(true)
         .subcommand(types::types_command())
         .subcommand(devbox::devbox_command())
+        .subcommand(r#box::commands())
 }
 
 fn main() {
@@ -41,6 +44,7 @@ fn main() {
             match matches.subcommand() {
                 Some(("devbox", sub_matches)) => devbox::devbox_match(sub_matches).await,
                 Some(("types", sub_matches)) => types::types_match(sub_matches).await,
+                Some(("box", sub_matches)) => r#box::matches(sub_matches).await,
                 Some((ext, sub_matches)) => {
                     let args = sub_matches
                         .values_of_os("")

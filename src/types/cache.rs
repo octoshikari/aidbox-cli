@@ -9,7 +9,7 @@ use std::fs::File;
 use std::io::Error;
 use std::path::Path;
 
-#[derive(Serialize, Clone, Eq, PartialEq)]
+#[derive(Serialize, Clone, Eq, PartialEq, Debug)]
 pub struct TypeElementSubType {
     pub description: Option<String>,
     pub require: bool,
@@ -19,7 +19,7 @@ pub struct TypeElementSubType {
     pub array: bool,
 }
 
-#[derive(Serialize, Clone, Eq, PartialEq)]
+#[derive(Serialize, Clone, Eq, PartialEq, Debug)]
 pub struct TypeElementPart {
     pub description: Option<String>,
     pub sub_type: Option<HashMap<String, TypeElementSubType>>,
