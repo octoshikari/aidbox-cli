@@ -14,11 +14,13 @@ Arguments:
 
 * `--config`: Config dir path
 
-* `--profile`: Save box config under specific key. If key already exists then value will be overwritten
+* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
 
 ## Subcommands
 
 ### doc
+
+Generate doc based on commands and save into USAGE.md file 
 
 Arguments:
 
@@ -26,11 +28,13 @@ Arguments:
 
 ### completion
 
+Generate autocompletion for several shells
+
 Arguments:
 
 * `--help`: Print help information
 
-* `--generate=<bash,elvish,fish,powershell,zsh>`: Generate
+* `--generate=<bash,elvish,fish,powershell,zsh>`: Generate autocompletion for provided shell
 
 ### types
 
@@ -122,7 +126,7 @@ Arguments:
 
 ### box
 
-Box instance
+Interact with box instance
 
 Arguments:
 
@@ -132,18 +136,42 @@ Arguments:
 
 ##### configure
 
-Initialize box config
+Initialize box config. With --instance arg, data will be stored under specific key
 
 Arguments:
 
 * `--help`: Print help information
 
-##### unset
+##### rm
 
-Pull latest images from DockerHub
+Remove box instance config. With --instance arg, specific config key will be removed
 
 Arguments:
 
 * `--help`: Print help information
 
-* `-t`: Devbox image tag
+##### info
+
+Show box info based on $version endpoint. With --instance arg, specific config key will be used
+
+Arguments:
+
+* `--help`: Print help information
+
+##### current-user
+
+Show current user info based on provided credentials. With --instance arg, specific config key will be used
+
+Arguments:
+
+* `--help`: Print help information
+
+##### execute-sql
+
+Send content of sql file to $psql endpoint and show result. With --instance arg, specific config key will be removed
+
+Arguments:
+
+* `--help`: Print help information
+
+* ``Path to target .sql file

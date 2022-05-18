@@ -37,29 +37,17 @@ Add result file content into your profile ```notepad $profile```
 
 
 
-## Workflow
+## License
 
-### Trunk-based dev
+`aidbox-cli` is licensed under either of
 
-1. Make changes locally
-2. Run tests with cargo test
-3. Commit and push to master
-4. CI tests and builds prereleases for each platform
+* Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+* MIT license ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
 
-### Pull-request flow
+at your option.
 
-1. Make changes locally
-2. Run tests with cargo test
-3. Commit and push to branch or fork
-4. Review CI results
-5. Make pull request
-6. Review CI results and merge
+## Contribution
 
-## Release process
+Any kinds of contributions are welcome as a pull request.
 
-1. Update version in toml files
-2. Commit to master
-3. Tag with v\* version
-4. Push tags
-5. CI tests and builds releases for each platform
-6. CI creates a github release and attaches binaries
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in these tool by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
