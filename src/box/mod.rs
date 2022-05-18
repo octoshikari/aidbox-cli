@@ -1,5 +1,5 @@
+use crate::config::Config;
 use clap::{ArgMatches, Command};
-use std::path::PathBuf;
 
 pub fn commands() -> Command<'static> {
     return Command::new("box")
@@ -21,8 +21,9 @@ pub async fn matches(sub_matches: &ArgMatches) {
     let box_command = sub_matches.subcommand().unwrap_or(("help", sub_matches));
     match box_command {
         ("configure", sub_matches) => {
-            let cfg_file_path = sub_matches.value_of("config").map(PathBuf::from);
-            println!("{:#?}", cfg_file_path);
+            let config = Config::new(sub_matches.value_of("config").unwrap().to_string());
+
+            println!("{:#?}", config);
         }
         (name, _) => {
             unreachable!("Unsupported subcommand `{}`", name)

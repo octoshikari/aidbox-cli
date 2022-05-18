@@ -1,4 +1,5 @@
 mod r#box;
+mod config;
 mod devbox;
 mod types;
 
@@ -10,7 +11,6 @@ use std::path::PathBuf;
 
 fn get_home_dir(path: &mut PathBuf) -> &str {
     path.push(".aidbox");
-    path.push("config");
 
     return path.to_str().unwrap();
 }
@@ -40,7 +40,7 @@ fn main() {
                 .init();
 
             let matches = Command::new("aidbox")
-                .about("Aidbox CLI tool")
+                .about("Aidbox CLI")
                 .version(env!("CARGO_PKG_VERSION"))
                 .subcommand_required(true)
                 .arg_required_else_help(true)
@@ -48,8 +48,9 @@ fn main() {
                 .allow_invalid_utf8_for_external_subcommands(true)
                 .args(vec![clap::Arg::new("config")
                     .short('c')
-                    .value_name("CONFIG")
-                    .help("Config file path")
+                    .long("config")
+                    .help("Config dir path")
+                    .global(true)
                     .default_value(config_path)])
                 .subcommand(types::types_command())
                 .subcommand(devbox::devbox_command())
