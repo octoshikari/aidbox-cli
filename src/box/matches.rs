@@ -1,0 +1,104 @@
+use crate::config::{BoxInstance, Config};
+use crate::r#box::requests::{create_box, ConnectionConfig};
+use clap::ArgMatches;
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::{Confirm, Input, Password};
+use log::error;
+use std::fmt::Debug;
+use std::str::FromStr;
+
+pub async fn configure(sub_matches: &ArgMatches) {
+    let mut config = Config::new(sub_matches);
+    let key = sub_matches.value_of("instance").unwrap();
+    let (current_url, current_username, current_password) = match config.boxes.get(key) {
+        Some(current_box) => (
+            Some(current_box.url.clone()),
+            Some(current_box.client.clone()),
+            Some(current_box.secret.clone()),
+        ),
+        None => (None, None, None),
+    };
+
+    let url = prompt::<String>("Aidbox URL", current_url);
+
+    let username = prompt::<String>("ClientID", current_username);
+
+    let password = Password::with_theme(&ColorfulTheme::default())
+        .allow_empty_password(current_password.is_some())
+        .report(true)
+        .with_prompt("Client secret")
+        .interact()
+        .unwrap();
+    let target_password = match password.is_empty() {
+        true => current_password.unwrap(),
+        false => password,
+    };
+    let box_check = create_box(ConnectionConfig {
+        base_url: url.clone(),
+        username: username.clone(),
+        secret: target_password.clone(),
+    })
+    .await;
+
+    match box_check {
+        Ok(instance) => match instance.get_user_info().await {
+            Ok(info) => config.update_boxes(
+                key.to_string(),
+                BoxInstance {
+                    url,
+                    client: username,
+                    secret: target_password,
+                    user_info: Some(info),
+                    box_info: match instance.get_box_version().await {
+                        Ok(it) => Some(it),
+                        Err(err) => {
+                            error!("{}", err);
+                            None
+                        }
+                    },
+                },
+            ),
+            Err(err) => {
+                error!("{:?}", err);
+            }
+        },
+        Err(err) => {
+            error!("{:?}", err);
+        }
+    }
+}
+
+pub fn rm_instance_config(sub_matches: &ArgMatches) {
+    let key = sub_matches.value_of("instance").unwrap();
+    let mut config = Config::new(sub_matches);
+    if config.boxes.get(key).is_none() {
+        error!("Instance config with key '{}' doesn't exist", key);
+    } else if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!(
+            "Do you want to continue and delete config for {} instance?",
+            key
+        ))
+        .default(true)
+        .interact()
+        .expect("Confirm prompt error")
+    {
+        config.boxes.remove(key);
+        config.save_on_disk();
+    }
+}
+
+fn prompt<T>(prompt: &str, default: Option<T>) -> T
+where
+    T: Clone + ToString + FromStr,
+    <T as FromStr>::Err: Debug + ToString,
+{
+    let theme = &ColorfulTheme::default();
+    let mut builder = Input::<T>::with_theme(theme);
+    builder.with_prompt(prompt);
+
+    if let Some(default) = default {
+        builder.default(default);
+    }
+
+    builder.interact_text().unwrap()
+}

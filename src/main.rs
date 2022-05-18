@@ -58,15 +58,15 @@ async fn main() {
                 .help("Config dir path")
                 .global(true)
                 .default_value(config_path),
-            Arg::new("profile")
-                .long("profile")
+            Arg::new("instance")
+                .long("instance")
                 .value_hint(ValueHint::DirPath)
                 .help("Save box config under specific key. If key already exists then value will be overwritten")
                 .global(true)
                 .default_value("default"),
         ])
-        .subcommand(Command::new("doc"))
-        .subcommand(Command::new("completion").args(vec![Arg::new("generator")
+        .subcommand(Command::new("doc").about("Generate doc based on commands and save into USAGE.md file "))
+        .subcommand(Command::new("completion").about("Generate autocompletion for several shells").args(vec![Arg::new("generator")
                 .help("Generate")
                 .required(true)
                 .possible_values(Shell::possible_values())
@@ -108,7 +108,7 @@ async fn main() {
         }
         Some(("devbox", sub_matches)) => devbox::devbox_match(sub_matches).await,
         Some(("types", sub_matches)) => types::types_match(sub_matches).await,
-        Some(("box", sub_matches)) => r#box::matches(sub_matches).await,
+        Some(("box", sub_matches)) => r#box::sub_matches(sub_matches).await,
         Some((ext, sub_matches)) => {
             let args = sub_matches
                 .values_of_os("")

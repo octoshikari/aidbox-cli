@@ -17,7 +17,7 @@ pub struct ConnectionConfig {
     pub secret: String,
 }
 
-pub struct BoxInstance {
+pub struct BoxConfig {
     instance: Client,
     config: ConnectionConfig,
 }
@@ -59,9 +59,9 @@ pub struct BoxSearch {
     entry: Vec<SearchEntry>,
 }
 
-impl BoxInstance {
-    pub fn new(config: ConnectionConfig) -> BoxInstance {
-        BoxInstance {
+impl BoxConfig {
+    pub fn new(config: ConnectionConfig) -> BoxConfig {
+        BoxConfig {
             instance: Client::new(),
             config,
         }
@@ -252,8 +252,8 @@ impl BoxInstance {
     }
 }
 
-pub async fn create_box(config: ConnectionConfig) -> Result<BoxInstance, reqwest::Error> {
-    let box_instance = BoxInstance::new(config);
+pub async fn create_box(config: ConnectionConfig) -> Result<BoxConfig, reqwest::Error> {
+    let box_instance = BoxConfig::new(config);
 
     return match box_instance.health_check().await {
         Ok(..) => {

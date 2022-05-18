@@ -65,4 +65,13 @@ impl Config {
             );
         };
     }
+
+    pub fn save_on_disk(&mut self) {
+        if let Ok(..) = serde_json::to_writer(
+            &File::create(&self.config_file).expect("Cannot save config file"),
+            &self.boxes,
+        ) {
+            info!("Config file has been saved on disk");
+        };
+    }
 }
