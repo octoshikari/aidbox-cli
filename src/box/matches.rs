@@ -3,7 +3,7 @@ use crate::r#box::requests::{create_box, ConnectionConfig};
 use clap::ArgMatches;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password};
-use log::error;
+use log::{error, info};
 use std::fmt::Debug;
 use std::str::FromStr;
 
@@ -69,21 +69,60 @@ pub async fn configure(sub_matches: &ArgMatches) {
 }
 
 pub fn rm_instance_config(sub_matches: &ArgMatches) {
+    if let Ok((mut config, key)) = get_config_or_error(sub_matches) {
+        if Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(format!(
+                "Do you want to continue and delete config for {} instance?",
+                key
+            ))
+            .default(true)
+            .interact()
+            .expect("Confirm prompt error")
+        {
+            config.boxes.remove(key);
+            config.save_on_disk();
+        }
+    }
+}
+
+// pub fn get_current_user(sub_matches: &ArgMatches) {
+//     let key = sub_matches.value_of("instance").unwrap();
+//     let mut config = Config::new(sub_matches);
+//     if config.boxes.get(key).is_none() {
+//         error!("Instance config with key '{}' doesn't exist", key);
+//     } else if Confirm::with_theme(&ColorfulTheme::default())
+//         .with_prompt(format!(
+//             "Do you want to continue and delete config for {} instance?",
+//             key
+//         ))
+//         .default(true)
+//         .interact()
+//         .expect("Confirm prompt error")
+//     {
+//         config.boxes.remove(key);
+//         config.save_on_disk();
+//     }
+// }
+
+pub fn get_box_info(sub_matches: &ArgMatches) {
+    if let Ok((config, key)) = get_config_or_error(sub_matches) {
+        let instance = config.boxes.get(key).unwrap();
+
+        match &instance.box_info {
+            Some(info) => println!("{}", serde_json::to_string_pretty(info).unwrap()),
+            None => eprintln!("Box info doesn't exist. Please run --configure"),
+        }
+    }
+}
+
+fn get_config_or_error(sub_matches: &ArgMatches) -> Result<(Config, &str), String> {
     let key = sub_matches.value_of("instance").unwrap();
-    let mut config = Config::new(sub_matches);
+    let config = Config::new(sub_matches);
     if config.boxes.get(key).is_none() {
         error!("Instance config with key '{}' doesn't exist", key);
-    } else if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!(
-            "Do you want to continue and delete config for {} instance?",
-            key
-        ))
-        .default(true)
-        .interact()
-        .expect("Confirm prompt error")
-    {
-        config.boxes.remove(key);
-        config.save_on_disk();
+        Err(format!("Instance config with key '{}' doesn't exist", key))
+    } else {
+        Ok((config, key))
     }
 }
 
