@@ -53,12 +53,17 @@ async fn main() {
                 .global(true)
                 .help("Less output per occurrence"),
             Arg::new("config")
-                .short('c')
                 .long("config")
                 .value_hint(ValueHint::DirPath)
                 .help("Config dir path")
                 .global(true)
                 .default_value(config_path),
+            Arg::new("profile")
+                .long("profile")
+                .value_hint(ValueHint::DirPath)
+                .help("Save box config under specific key. If key already exists then value will be overwritten")
+                .global(true)
+                .default_value("default"),
         ])
         .subcommand(Command::new("doc"))
         .subcommand(Command::new("completion").args(vec![Arg::new("generator")

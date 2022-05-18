@@ -1,10 +1,10 @@
-mod requests;
+pub(crate) mod requests;
 
-use crate::config::{Boxes, Config};
+use crate::config::{BoxInstance, Config};
 use crate::r#box::requests::{create_box, ConnectionConfig};
 use clap::{ArgMatches, Command};
 use dialoguer::{theme::ColorfulTheme, Input, Password};
-use std::collections::HashMap;
+use log::error;
 use std::fmt::Debug;
 use std::str::FromStr;
 
@@ -29,50 +29,61 @@ pub async fn matches(sub_matches: &ArgMatches) {
     match box_command {
         ("configure", sub_matches) => {
             let mut config = Config::new(sub_matches);
-            config.update_boxes(
-                "test".to_string(),
-                Boxes {
-                    url: "sss".to_string(),
-                    username: "sss".to_string(),
-                    password: "sss".to_string(),
-                    user: HashMap::new(),
-                },
-            );
-
-            let (current_url, current_password, current_username) =
-                match config.boxes.get("default") {
-                    Some(current_box) => (
-                        Some(current_box.url.clone()),
-                        Some(current_box.password.clone()),
-                        Some(current_box.username.clone()),
-                    ),
-                    None => (None, None, None),
-                };
+            let key = sub_matches.value_of("profile").unwrap();
+            let (current_url, current_username, current_password) = match config.boxes.get(key) {
+                Some(current_box) => (
+                    Some(current_box.url.clone()),
+                    Some(current_box.client.clone()),
+                    Some(current_box.secret.clone()),
+                ),
+                None => (None, None, None),
+            };
 
             let url = prompt::<String>("Aidbox URL", current_url);
 
-            let username = prompt::<String>("Username", current_username);
+            let username = prompt::<String>("ClientID", current_username);
 
             let password = Password::new()
                 .allow_empty_password(current_password.is_some())
                 .report(false)
-                .with_prompt("Password")
+                .with_prompt("Client secret")
                 .interact()
                 .unwrap();
-
+            let target_password = match password.is_empty() {
+                true => current_password.unwrap(),
+                false => password,
+            };
             let box_check = create_box(ConnectionConfig {
-                base_url: url,
-                username,
-                secret: password,
+                base_url: url.clone(),
+                username: username.clone(),
+                secret: target_password.clone(),
             })
             .await;
 
             match box_check {
-                Ok(_) => {
-                    println!("okay");
-                }
-                Err(_) => {
-                    println!("not okay");
+                Ok(instance) => match instance.get_user_info().await {
+                    Ok(info) => config.update_boxes(
+                        key.to_string(),
+                        BoxInstance {
+                            url,
+                            client: username,
+                            secret: target_password,
+                            user_info: Some(info),
+                            box_info: match instance.get_box_version().await {
+                                Ok(it) => Some(it),
+                                Err(err) => {
+                                    error!("{}", err);
+                                    None
+                                }
+                            },
+                        },
+                    ),
+                    Err(err) => {
+                        error!("{:?}", err);
+                    }
+                },
+                Err(err) => {
+                    error!("{:?}", err);
                 }
             }
         }

@@ -12,7 +12,9 @@ Arguments:
 
 * `-q`: Less output per occurrence
 
-* `-c / --config`: Config dir path
+* `--config`: Config dir path
+
+* `--profile`: Save box config under specific key. If key already exists then value will be overwritten
 
 ## Subcommands
 

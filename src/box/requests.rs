@@ -157,7 +157,6 @@ impl BoxInstance {
         let result = self
             .instance
             .get(format!("{}/__healthcheck", &self.config.base_url))
-            .basic_auth(&self.config.username, Some(&self.config.secret))
             .send();
 
         return match result.await {
@@ -165,6 +164,42 @@ impl BoxInstance {
             Err(error) => Err(error),
         };
     }
+
+    pub async fn get_user_info(&self) -> Result<Value, String> {
+        let result = self
+            .instance
+            .get(format!("{}/auth/userinfo", &self.config.base_url))
+            .basic_auth(&self.config.username, Some(&self.config.secret))
+            .send();
+
+        return match result.await {
+            Ok(it) => match it.status().as_u16() {
+                401 => Err("Access denied. Please check you credentials".to_string()),
+                _ => Ok(it.json().await.unwrap()),
+            },
+            Err(error) => Err(error.to_string()),
+        };
+    }
+
+    pub async fn get_box_version(&self) -> Result<Value, String> {
+        let result = self
+            .instance
+            .get(format!("{}/$version", &self.config.base_url))
+            .basic_auth(&self.config.username, Some(&self.config.secret))
+            .send();
+
+        return match result.await {
+            Ok(it) => Ok(it.json().await.unwrap()),
+            Err(err) => {
+                println!("{:#?}", err);
+                Err(
+                    "$version operation doesn't exist. Please update you aidbox on newer version"
+                        .to_string(),
+                )
+            }
+        };
+    }
+
     pub async fn get_symbol(&self, symbol: &str) -> Result<HashMap<String, Value>, Box<dyn Error>> {
         let req = self
             .instance
