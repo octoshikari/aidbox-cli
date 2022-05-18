@@ -58,7 +58,7 @@ dependencies = [
  "clap_complete",
  "dialoguer",
  "dirs",
- "dprint-core",
+ "dprint-core 0.57.0",
  "dprint-development",
  "dprint-plugin-typescript",
  "env_logger",
@@ -481,6 +481,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dprint-core"
+version = "0.57.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57f491f0f9f8c4afb7f949074ec4bd2bac93cc081056e764f14744fc7b89d0da"
+dependencies = [
+ "anyhow",
+ "bumpalo",
+ "indexmap",
+ "rustc-hash",
+ "serde",
+]
+
+[[package]]
 name = "dprint-development"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -500,7 +513,7 @@ checksum = "f7210d773012a869d45bfde328cb8a0a088aa9f4fe66d4a07a509f78363741f1"
 dependencies = [
  "anyhow",
  "deno_ast",
- "dprint-core",
+ "dprint-core 0.56.0",
  "rustc-hash",
  "serde",
 ]
