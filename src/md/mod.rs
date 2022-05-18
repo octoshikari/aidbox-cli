@@ -10,7 +10,6 @@ struct Document<'a>(Vec<Event<'a>>);
 
 impl<'a> Document<'a> {
     fn header(&mut self, text: String, level: i32) {
-        println!("{}", level);
         let level = match level {
             1 => HeadingLevel::H1,
             2 => HeadingLevel::H2,
@@ -54,28 +53,39 @@ fn recursive(doc: &mut Document, app: &Command, level: i32, skip_header: bool) {
         doc.0.push(Event::Start(Tag::List(None)));
 
         for arg in app.get_arguments() {
+            if arg.get_long().unwrap_or("t") == "version"
+                && level > 1
+                && !app.is_propagate_version_set()
+            {
+                continue;
+            }
             doc.0.push(Event::Start(Tag::Item));
             doc.0.push(Event::Start(Tag::Paragraph));
 
             let mut def = String::new();
             if let Some(short) = arg.get_short() {
-                def.push_str("-");
+                def.push('-');
                 def.push(short);
             }
             if let Some(long) = arg.get_long() {
                 if arg.get_short().is_some() {
-                    def.push_str("/");
+                    def.push_str(" / ");
                 }
                 def.push_str("--");
                 def.push_str(long);
             }
 
-            if arg.is_takes_value_set() {
+            if arg.is_takes_value_set() && arg.get_possible_values().is_some() {
                 def.push_str("=<");
-                if arg.get_value_names().is_some() {
-                    def.push_str(arg.get_value_names().unwrap().join(",").as_str());
-                }
-                def.push_str(">");
+                let values: Vec<&str> = arg
+                    .get_possible_values()
+                    .unwrap()
+                    .iter()
+                    .map(|it| it.get_name())
+                    .collect();
+
+                def.push_str(values.join(",").as_str());
+                def.push('>');
             }
 
             doc.0.push(Event::Code(def.into()));
@@ -106,17 +116,9 @@ fn recursive(doc: &mut Document, app: &Command, level: i32, skip_header: bool) {
     }
 }
 
-/// Convert a clap App to markdown documentation
-///
-/// # Parameters
-///
-/// - `app`: A reference to a clap application definition
-/// - `level`: The level for first markdown headline. If you for example want to
-///     render this beneath a `## Usage` headline in your readme, you'd want to
-///     set `level` to `2`.
 pub fn app_to_md(app: &Command, level: i32) -> Result<String, Box<dyn std::error::Error>> {
     let mut document = Document(Vec::new());
-    recursive(&mut document, &app, level, level > 1);
+    recursive(&mut document, app, level, true);
     let mut result = String::new();
     cmark(document.0.iter(), &mut result)?;
     Ok(result)

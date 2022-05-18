@@ -40,8 +40,7 @@ impl Config {
             }
             false => {
                 fs::create_dir_all(&config_dir).expect("Cannot create config file");
-                let empty_boxes = HashMap::new();
-                empty_boxes
+                HashMap::new()
             }
         };
 

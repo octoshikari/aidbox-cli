@@ -1,6 +1,4 @@
-# aidbox
-
-Aidbox CLI
+Aidbox CLI that provide useful command for interact with your box instance
 
 Version: 0.3.0
 
@@ -10,7 +8,11 @@ Arguments:
 
 * `--version`: Print version information
 
-* `-c/--config=<>`: Config dir path
+* `-v`: More output per occurrence
+
+* `-q`: Less output per occurrence
+
+* `-c / --config`: Config dir path
 
 ## Subcommands
 
@@ -20,7 +22,13 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
+### completion
+
+Arguments:
+
+* `--help`: Print help information
+
+* `--generate=<bash,elvish,fish,powershell,zsh>`: Generate
 
 ### types
 
@@ -29,8 +37,6 @@ Work with types generation
 Arguments:
 
 * `--help`: Print help information
-
-* `--version`: Print version information
 
 #### Subcommands
 
@@ -42,21 +48,19 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
+* `-b / --box`: Aidbox URL
 
-* `-b/--box=<URL>`: Aidbox URL
+* `-u / --user`: Aidbox basic auth user
 
-* `-u/--user=<USERNAME>`: Aidbox basic auth user
+* `-s / --secret`: Aidbox basic auth secret
 
-* `-s/--secret=<SECRET>`: Aidbox basic auth secret
-
-* `--cache-folder=<>`: Cache folder path
+* `--cache-folder`: Cache folder path
 
 * `--cache`: Use cache
 
-* `-i/--include-profiles`: Include profiles
+* `-i / --include-profiles`: Include profiles
 
-* `-o/--output=<>`: Output file
+* `-o / --output`: Output file
 
 * `--fhir`: FHIR related type
 
@@ -68,8 +72,6 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
-
 ###### Subcommands
 
 ###### rm
@@ -80,13 +82,11 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
-
-* `-f/--folder=<>`: Cache folder
+* `-f / --folder`: Cache folder
 
 * `--all`: Remove all cache items
 
-* `-k/--key=<>`: Remove specific key item
+* `-k / --key=<confirms,primitives,schema,valuesets,symbols>`: Remove specific key item
 
 ### devbox
 
@@ -95,8 +95,6 @@ Work with devbox installation
 Arguments:
 
 * `--help`: Print help information
-
-* `--version`: Print version information
 
 #### Subcommands
 
@@ -108,9 +106,7 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
-
-* `-t=<TARGET>`: Devbox image tag
+* `-t=<edge,latest,stable>`: Devbox image tag
 
 ##### update
 
@@ -120,9 +116,7 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
-
-* `-t=<TARGET>`: Devbox image tag
+* `-t=<edge,latest,stable>`: Devbox image tag
 
 ### box
 
@@ -131,8 +125,6 @@ Box instance
 Arguments:
 
 * `--help`: Print help information
-
-* `--version`: Print version information
 
 #### Subcommands
 
@@ -144,8 +136,6 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
-
 ##### unset
 
 Pull latest images from DockerHub
@@ -154,6 +144,4 @@ Arguments:
 
 * `--help`: Print help information
 
-* `--version`: Print version information
-
-* `-t=<TARGET>`: Devbox image tag
+* `-t`: Devbox image tag

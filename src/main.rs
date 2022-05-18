@@ -3,12 +3,15 @@ mod config;
 mod devbox;
 mod md;
 mod types;
+mod verbosity;
 
 use crate::md::app_to_md;
+use crate::verbosity::{log_level_filter, set_verbosity};
 use chrono::Local;
-use clap::{Arg, Command};
+use clap::{Arg, Command, ValueHint};
 use clap_complete::{generate, Generator, Shell};
 use human_panic::setup_panic;
+use log::Level;
 use std::io::Write;
 use std::path::PathBuf;
 use std::{fs, io};
@@ -38,10 +41,21 @@ async fn main() {
         .allow_external_subcommands(true)
         .allow_invalid_utf8_for_external_subcommands(true)
         .args(vec![
-            //clap::Arg::new("verbosity").short('v').global(true).help(""),
-            clap::Arg::new("config")
+            Arg::new("verbose")
+                .short('v')
+                .multiple_occurrences(true)
+                .global(true)
+                .help("More output per occurrence"),
+            Arg::new("quiet")
+                .short('q')
+                .conflicts_with("verbose")
+                .multiple_occurrences(true)
+                .global(true)
+                .help("Less output per occurrence"),
+            Arg::new("config")
                 .short('c')
                 .long("config")
+                .value_hint(ValueHint::DirPath)
                 .help("Config dir path")
                 .global(true)
                 .default_value(config_path),
@@ -69,11 +83,15 @@ async fn main() {
                 record.args()
             )
         })
-        // .filter_level(matches.value_of("verbosity").unwrap().log_level_filter())
+        .filter_level(log_level_filter(set_verbosity(
+            Some(Level::Error),
+            matches.occurrences_of("quiet") as i8,
+            matches.occurrences_of("verbose") as i8,
+        )))
         .init();
 
     match matches.subcommand() {
-        Some(("doc", _sub_matches)) => {
+        Some(("doc", _)) => {
             let markdown = app_to_md(&app, 1).unwrap();
             fs::write("USAGE.md", markdown).unwrap();
         }
