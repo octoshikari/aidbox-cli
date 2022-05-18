@@ -85,24 +85,16 @@ pub fn rm_instance_config(sub_matches: &ArgMatches) {
     }
 }
 
-// pub fn get_current_user(sub_matches: &ArgMatches) {
-//     let key = sub_matches.value_of("instance").unwrap();
-//     let mut config = Config::new(sub_matches);
-//     if config.boxes.get(key).is_none() {
-//         error!("Instance config with key '{}' doesn't exist", key);
-//     } else if Confirm::with_theme(&ColorfulTheme::default())
-//         .with_prompt(format!(
-//             "Do you want to continue and delete config for {} instance?",
-//             key
-//         ))
-//         .default(true)
-//         .interact()
-//         .expect("Confirm prompt error")
-//     {
-//         config.boxes.remove(key);
-//         config.save_on_disk();
-//     }
-// }
+pub fn get_user_info(sub_matches: &ArgMatches) {
+    if let Ok((config, key)) = get_config_or_error(sub_matches) {
+        let instance = config.boxes.get(key).unwrap();
+
+        match &instance.user_info {
+            Some(info) => println!("{}", serde_json::to_string_pretty(info).unwrap()),
+            None => eprintln!("User info doesn't exist. Please run --configure"),
+        }
+    }
+}
 
 pub fn get_box_info(sub_matches: &ArgMatches) {
     if let Ok((config, key)) = get_config_or_error(sub_matches) {
