@@ -16,6 +16,10 @@ fn get_home_dir(path: &mut PathBuf) -> &str {
 }
 
 fn main() {
+    let path: &'static mut PathBuf = Box::leak(Box::new(dirs::home_dir().unwrap()));
+
+    let config_path: &'static str = Box::leak(Box::new(get_home_dir(path)));
+
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -35,8 +39,6 @@ fn main() {
                 .filter_level(LevelFilter::Info)
                 .init();
 
-            let config_path = get_home_dir(&mut dirs::home_dir().unwrap().to_path_buf());
-
             let matches = Command::new("aidbox")
                 .about("Aidbox CLI tool")
                 .version(env!("CARGO_PKG_VERSION"))
@@ -48,7 +50,7 @@ fn main() {
                     .short('c')
                     .value_name("CONFIG")
                     .help("Config file path")
-                    .default_value(config_path.clone())])
+                    .default_value(config_path)])
                 .subcommand(types::types_command())
                 .subcommand(devbox::devbox_command())
                 .subcommand(r#box::commands())
