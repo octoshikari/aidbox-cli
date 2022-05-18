@@ -25,7 +25,6 @@ pub fn types_command() -> Command<'static> {
                         .default_value(".local-cache"),
                     Arg::new("cache")
                         .long("cache")
-                        .short('c')
                         .takes_value(false)
                         .help("Use cache"),
                     Arg::new("include-profiles")

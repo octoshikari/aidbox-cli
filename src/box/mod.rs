@@ -1,5 +1,12 @@
-use crate::config::Config;
+mod requests;
+
+use crate::config::{Boxes, Config};
+use crate::r#box::requests::{create_box, ConnectionConfig};
 use clap::{ArgMatches, Command};
+use dialoguer::{theme::ColorfulTheme, Input, Password};
+use std::collections::HashMap;
+use std::fmt::Debug;
+use std::str::FromStr;
 
 pub fn commands() -> Command<'static> {
     return Command::new("box")
@@ -21,12 +28,72 @@ pub async fn matches(sub_matches: &ArgMatches) {
     let box_command = sub_matches.subcommand().unwrap_or(("help", sub_matches));
     match box_command {
         ("configure", sub_matches) => {
-            let config = Config::new(sub_matches.value_of("config").unwrap().to_string());
+            let mut config = Config::new(sub_matches);
+            config.update_boxes(
+                "test".to_string(),
+                Boxes {
+                    url: "sss".to_string(),
+                    username: "sss".to_string(),
+                    password: "sss".to_string(),
+                    user: HashMap::new(),
+                },
+            );
 
-            println!("{:#?}", config);
+            let (current_url, current_password, current_username) =
+                match config.boxes.get("default") {
+                    Some(current_box) => (
+                        Some(current_box.url.clone()),
+                        Some(current_box.password.clone()),
+                        Some(current_box.username.clone()),
+                    ),
+                    None => (None, None, None),
+                };
+
+            let url = prompt::<String>("Aidbox URL", current_url);
+
+            let username = prompt::<String>("Username", current_username);
+
+            let password = Password::new()
+                .allow_empty_password(current_password.is_some())
+                .report(false)
+                .with_prompt("Password")
+                .interact()
+                .unwrap();
+
+            let box_check = create_box(ConnectionConfig {
+                base_url: url,
+                username,
+                secret: password,
+            })
+            .await;
+
+            match box_check {
+                Ok(_) => {
+                    println!("okay");
+                }
+                Err(_) => {
+                    println!("not okay");
+                }
+            }
         }
         (name, _) => {
             unreachable!("Unsupported subcommand `{}`", name)
         }
     }
+}
+
+fn prompt<T>(prompt: &str, default: Option<T>) -> T
+where
+    T: Clone + ToString + FromStr,
+    <T as FromStr>::Err: Debug + ToString,
+{
+    let theme = &ColorfulTheme::default();
+    let mut builder = Input::<T>::with_theme(theme);
+    builder.with_prompt(prompt);
+
+    if let Some(default) = default {
+        builder.default(default);
+    }
+
+    builder.interact_text().unwrap()
 }

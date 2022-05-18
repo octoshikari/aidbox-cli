@@ -3,6 +3,40 @@
 [![CI](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml)
 [![Code Formatting](https://github.com/octoshikari/aidbox-cli/actions/workflows/checks.yaml/badge.svg)](https://github.com/octoshikari/aidbox-cli/actions/workflows/checks.yaml)
 
+
+
+
+
+
+## Autocompletion
+### ZSH
+```shell
+aidbox completion --generate=zsh > /usr/local/share/zsh/site-functions/_value_hints
+compinit
+```
+
+### FISH
+```shell
+aidbox completion --generate=fish > aidbox.fish
+. ./aidbox.fish
+```
+
+### BASH
+```shell
+aidbox completion --generate=bash > aidbox.completion
+source ./aidbox.completion
+```
+
+### POWERSHELL
+```shell
+aidbox completion --generate=powershell > aidbox.ps1
+```
+Add result file content into your profile ```notepad $profile```
+
+
+
+
+
 ## Workflow
 
 ### Trunk-based dev
