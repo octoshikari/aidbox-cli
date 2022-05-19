@@ -18,7 +18,7 @@ pub struct BoxInstance {
 
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub struct Config {
-  config_dir: PathBuf,
+  pub config_dir: PathBuf,
   config_file: PathBuf,
   pub boxes: HashMap<String, BoxInstance>,
 }

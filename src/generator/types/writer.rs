@@ -1,5 +1,5 @@
-use crate::types::cache::{Cache, TypeElementPart, TypeElementSubType};
-use crate::types::helpers::key_required;
+use crate::generator::cache::{Cache, TypeElementPart, TypeElementSubType};
+use crate::generator::helpers::key_required;
 use dprint_plugin_typescript::configuration::*;
 use dprint_plugin_typescript::*;
 use std::collections::HashMap;

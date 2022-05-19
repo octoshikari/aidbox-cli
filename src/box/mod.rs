@@ -1,5 +1,5 @@
-mod matches;
-mod requests;
+pub mod matches;
+pub mod requests;
 
 use clap::{Arg, ArgMatches, Command, ValueHint};
 

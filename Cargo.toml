@@ -12,31 +12,33 @@ categories = ["command-line-utilities"]
 publish = false
 
 [dependencies]
-clap = {version="3.1.18", features= ["cargo", "wrap_help"]}
-log = "0.4.17"
-env_logger = "0.9.0"
+clap = {version="3", features= ["cargo", "wrap_help"]}
+log = "0.4"
+env_logger = "0.9"
 serde = { version = "1.0" }
-serde_json = "1.0.81"
+serde_json = "1"
 chrono = "0.4.19"
 reqwest = { version = "0.11.10", features = ["json"] }
 bollard = "0.12"
-tokio = {version = "1.18.2", features = ["rt", "macros", "rt-multi-thread"]}
-exitcode = "1.1.2"
-futures = "0.3.21"
+tokio = {version = "1", features = ["rt", "macros", "rt-multi-thread"]}
+exitcode = "1"
+futures = "0.3"
 futures-core = "0.3"
-futures-util = "0.3.21"
-regex = "1.5.5"
+futures-util = "0.3"
+regex = "1.5"
 indicatif = "0.17.0-rc.10"
-async-recursion = "1.0.0"
-dprint-development = "0.9.1"
-dprint-plugin-typescript = "0.68.2"
-dprint-core = "0.57.0"
-dirs = "4.0.0"
+async-recursion = "1"
+dprint-development = "0.9"
+dprint-plugin-typescript = "0.68"
+dprint-core = "0.57"
+dirs = "4"
 dialoguer = "0.10"
-human-panic = "1.0.3"
-pulldown-cmark = "0.9.1"
-pulldown-cmark-to-cmark = "10.0.1"
-clap_complete = "3.1.4"
+human-panic = "1"
+pulldown-cmark = "0.9"
+pulldown-cmark-to-cmark = "10"
+clap_complete = "3"
+human_bytes = { version = "0.3", features = ["bibytes"] }
+
 
 [dev-dependencies]
 proptest = "1.0.0"
