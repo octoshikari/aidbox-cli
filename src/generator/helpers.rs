@@ -1,11 +1,15 @@
-use crate::types::cache::Cache;
-use crate::types::r#box::BoxInstance;
+use crate::generator::cache::{create_cache, Cache};
+use crate::generator::reader::generate_types;
+use crate::r#box::requests::BoxConfig;
+use log::{error, info};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::error::Error;
+use std::path::PathBuf;
+use std::process::exit;
 
 pub async fn get_symbol(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   symbol: &String,
 ) -> Result<HashMap<String, Value>, Box<dyn Error>> {
@@ -20,7 +24,7 @@ pub async fn get_symbol(
 }
 
 pub async fn get_value_set(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   symbol: &str,
 ) -> Result<Vec<String>, Box<dyn Error>> {
@@ -37,7 +41,7 @@ pub async fn get_value_set(
 }
 
 pub async fn get_confirms(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   confirms: Vec<&str>,
   resource_name: &str,
@@ -139,7 +143,7 @@ pub fn get_description_value(definition: &Value) -> Option<String> {
 }
 
 pub async fn init_confirms(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   resource_name: &str,
   definition: &HashMap<String, Value>,
@@ -163,7 +167,7 @@ pub async fn init_confirms(
 }
 
 pub async fn init_reference_confirms_value(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   resource_name: &str,
   definition: &Value,
@@ -185,7 +189,7 @@ pub async fn init_reference_confirms_value(
 }
 
 pub async fn init_confirms_value(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   resource_name: &str,
   definition: &Value,
@@ -276,6 +280,41 @@ pub fn key_required(key: String, require: bool) -> String {
   match require {
     true => key,
     false => format!("{}?", key),
+  }
+}
+
+pub async fn warm_up_definitions(
+  config_dir: PathBuf,
+  instance: BoxConfig,
+  include_profiles: bool,
+  instance_tag: &str,
+) {
+  let cache_init = create_cache(config_dir, instance_tag);
+  let mut cache = match cache_init {
+    Err(err) => {
+      error!("Cache creating error: {:}", err.to_string());
+      exit(0);
+    },
+    Ok(it) => {
+      info!("Cache ready!");
+      it
+    },
+  };
+  let types = match generate_types(instance, &mut cache, include_profiles).await {
+    Ok(it) => {
+      info!("Intermediate types ready");
+      it
+    },
+    Err(err) => {
+      error!("{:#?}", err);
+      exit(0);
+    },
+  };
+  match cache.save_intermediate_types(&types) {
+    Ok(..) | Err(..) => {},
+  }
+  match cache.save() {
+    Ok(..) | Err(..) => {},
   }
 }
 

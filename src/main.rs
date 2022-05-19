@@ -1,8 +1,8 @@
 mod r#box;
 mod config;
 mod devbox;
+mod generator;
 mod md;
-mod types;
 mod verbosity;
 
 use crate::md::app_to_md;
@@ -71,7 +71,7 @@ async fn main() {
                 .required(true)
                 .possible_values(Shell::possible_values())
                 .long("generate")]))
-        .subcommand(types::types_command())
+        .subcommand(generator::commands())
         .subcommand(devbox::devbox_command())
         .subcommand(r#box::commands());
 
@@ -89,7 +89,7 @@ async fn main() {
       )
     })
     .filter_level(log_level_filter(set_verbosity(
-      Some(Level::Error),
+      Some(Level::Info),
       matches.occurrences_of("quiet") as i8,
       matches.occurrences_of("verbose") as i8,
     )))
@@ -107,7 +107,7 @@ async fn main() {
       };
     },
     Some(("devbox", sub_matches)) => devbox::devbox_match(sub_matches).await,
-    Some(("types", sub_matches)) => types::types_match(sub_matches).await,
+    Some(("generator", sub_matches)) => generator::sub_matches(sub_matches).await,
     Some(("box", sub_matches)) => r#box::sub_matches(sub_matches).await,
     Some((ext, sub_matches)) => {
       let args = sub_matches

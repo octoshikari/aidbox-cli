@@ -147,7 +147,7 @@ pub async fn execute_sql(sub_matches: &ArgMatches) {
   }
 }
 
-fn get_config_or_error(sub_matches: &ArgMatches) -> Result<(Config, &str), String> {
+pub fn get_config_or_error(sub_matches: &ArgMatches) -> Result<(Config, &str), String> {
   let key = sub_matches.value_of("instance").unwrap();
   let config = Config::new(sub_matches);
   if config.boxes.get(key).is_none() {

@@ -7,7 +7,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::{self, File};
-use std::path::Path;
+use std::path::PathBuf;
 
 type RpcModel = HashMap<String, Value>;
 
@@ -66,25 +66,22 @@ impl BoxConfig {
       config,
     }
   }
-  pub async fn load_all_symbols(
-    &self,
-    cache: bool,
-    cache_path: &str,
-  ) -> Result<Vec<String>, Box<dyn Error>> {
-    if cache {
-      if Path::new(format!("{}/symbols.json", cache_path).as_str()).exists() {
-        let json = fs::read_to_string(format!("{}/symbols.json", cache_path))?;
-        let data: Vec<String> = serde_json::from_str(&json)?;
-        if !data.is_empty() {
-          warn!("Cached symbols will be used!!!");
+  pub async fn load_all_symbols(&self, cache_path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut target_path = cache_path.clone();
+    target_path.push("symbols.json");
 
-          return Ok(data);
-        } else {
-          info!("Cached symbols file empty")
-        }
+    if target_path.exists() {
+      let json = fs::read_to_string(target_path.to_str().unwrap())?;
+      let data: Vec<String> = serde_json::from_str(&json)?;
+      if !data.is_empty() {
+        warn!("Cached symbols will be used!!!");
+
+        return Ok(data);
       } else {
-        info!("Cached symbols not found. We will load them");
+        info!("Cached symbols file empty")
       }
+    } else {
+      info!("Cached symbols not found. We will load them");
     }
 
     let excluded_namespaces = RegexSet::new(&[
@@ -144,10 +141,7 @@ impl BoxConfig {
         symbols.push(format!("{}/{}", item, sym.name));
       }
     }
-    if let Ok(..) = serde_json::to_writer(
-      &File::create(format!("{}/symbols.json", cache_path))?,
-      &symbols,
-    ) {
+    if let Ok(..) = serde_json::to_writer(&File::create(target_path.to_str().unwrap())?, &symbols) {
       info!("Symbols load has been finished");
     };
     Ok(symbols)

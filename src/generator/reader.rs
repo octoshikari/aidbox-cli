@@ -1,10 +1,10 @@
-use crate::types::cache::{Cache, TypeElement, TypeElementPart, TypeElementSubType};
-use crate::types::helpers::{
+use crate::generator::cache::{Cache, TypeElement, TypeElementPart, TypeElementSubType};
+use crate::generator::helpers::{
   convert_primitive, get_confirms, get_description, get_description_value, get_name, get_symbol,
   get_value_set, init_confirms, init_confirms_value, init_reference_confirms_value,
   is_persistent_any, is_type_and_not_map, normalize_confirms, wrap_key, zen_path_to_name,
 };
-use crate::types::r#box::BoxInstance;
+use crate::r#box::requests::BoxConfig;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{info, warn};
 use serde_json::Value;
@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::error::Error;
 
 async fn parse_vector(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   resource_name: &str,
   every: &Value,
@@ -168,7 +168,7 @@ async fn parse_vector(
 
 #[async_recursion::async_recursion]
 async fn parse_map(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   resource_name: &str,
   keys: &Value,
@@ -537,7 +537,7 @@ async fn parse_map(
 }
 
 async fn prepare_keys(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   resource_name: &str,
   definition: &HashMap<String, Value>,
@@ -576,7 +576,7 @@ async fn prepare_keys(
 }
 
 async fn parse_symbol(
-  box_instance: &BoxInstance,
+  box_instance: &BoxConfig,
   cache: &mut Cache,
   symbol: &String,
   include_profiles: bool,
@@ -808,13 +808,13 @@ fn type_ok(
 }
 
 pub async fn generate_types(
-  box_instance: BoxInstance,
+  box_instance: BoxConfig,
   cache: &mut Cache,
   include_profiles: bool,
 ) -> Result<HashMap<String, TypeElementPart>, Box<dyn Error>> {
   info!("Start load symbols...");
   let symbols = match box_instance
-    .load_all_symbols(cache.cache_enabled, &cache.cache_path)
+    .load_all_symbols(cache.cache_path.clone())
     .await
   {
     Ok(it) => it,
@@ -878,10 +878,13 @@ pub async fn generate_types(
         } else {
           let merged_types = match new_element.element.sub_type.is_some() {
             true => match new_element.element.sub_type.is_some() {
-              true => Some(deep_merge_sub_type(
-                new_element.element.sub_type.clone().unwrap(),
-                old_element.sub_type.clone().unwrap(),
-              )),
+              true => match old_element.sub_type.is_some() {
+                true => Some(deep_merge_sub_type(
+                  new_element.element.sub_type.clone().unwrap(),
+                  old_element.sub_type.clone().unwrap(),
+                )),
+                false => Some(new_element.element.sub_type.clone().unwrap()),
+              },
               false => new_element.element.sub_type.clone(),
             },
             false => old_element.sub_type.clone(),
