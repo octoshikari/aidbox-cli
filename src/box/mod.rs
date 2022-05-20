@@ -1,13 +1,16 @@
 pub mod matches;
 pub mod requests;
 
+use crate::config::default_config_arg;
 use clap::{Arg, ArgMatches, Command, ValueHint};
 
 pub fn commands() -> Command<'static> {
   return Command::new("box")
         .about("Interact with box instance")
         .arg_required_else_help(true)
-        .subcommand(Command::new("configure").about(
+        .args(default_config_arg())
+        .subcommand(Command::new("configure")
+            .about(
             "Initialize box config. With --instance arg, data will be stored under specific key",
         ))
         .subcommand(Command::new("rm").about(
@@ -21,7 +24,10 @@ pub fn commands() -> Command<'static> {
         ))
         .subcommand(Command::new("execute-sql").about(
             "Send content of sql file to $psql endpoint and show result. With --instance arg, specific config key will be removed",
-        ).args(vec![Arg::new("file").required(true).help("Path to target .sql file").value_hint(ValueHint::FilePath)]));
+        ).args(vec![Arg::new("file")
+            .required(true)
+            .help("Path to target .sql file")
+            .value_hint(ValueHint::FilePath)]));
 }
 
 pub async fn sub_matches(sub_matches: &ArgMatches) {

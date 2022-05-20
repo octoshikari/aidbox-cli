@@ -12,10 +12,6 @@ Arguments:
 
 * `-q`: Less output per occurrence
 
-* `--config`: Config dir path
-
-* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
-
 ## Subcommands
 
 ### doc
@@ -36,7 +32,21 @@ Arguments:
 
 * `--generate=<bash,elvish,fish,powershell,zsh>`: Generate autocompletion for provided shell
 
-### types
+### generator
+
+Generate some useful things
+
+Arguments:
+
+* `--help`: Print help information
+
+* `--config`: Config dir path
+
+* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
+
+#### Subcommands
+
+##### types
 
 Work with types generation
 
@@ -44,9 +54,9 @@ Arguments:
 
 * `--help`: Print help information
 
-#### Subcommands
+###### Subcommands
 
-##### generate
+###### generate
 
 Generate types from zen schema
 
@@ -54,25 +64,33 @@ Arguments:
 
 * `--help`: Print help information
 
-* `-b / --box`: Aidbox URL
+* `--include-profiles`: Include profiles
 
-* `-u / --user`: Aidbox basic auth user
-
-* `-s / --secret`: Aidbox basic auth secret
-
-* `--cache-folder`: Cache folder path
-
-* `--cache`: Use cache
-
-* `-i / --include-profiles`: Include profiles
-
-* `-o / --output`: Output file
+* `--output`: Output file
 
 * `--fhir`: FHIR related type
 
+##### sample
+
+Create sample resource
+
+Arguments:
+
+* `--help`: Print help information
+
+##### warm-up
+
+Preload and parse resource definition from box. Please use this command before other commands
+
+Arguments:
+
+* `--help`: Print help information
+
+* `--include-profiles`: Include profiles
+
 ##### cache
 
-Work with cache items
+Cache commands
 
 Arguments:
 
@@ -80,49 +98,55 @@ Arguments:
 
 ###### Subcommands
 
-###### rm
+###### stats
 
-Remove cache items
+Show cache statistic
 
 Arguments:
 
 * `--help`: Print help information
 
-* `-f / --folder`: Cache folder
+###### rm
+
+Remove specific or all cache item
+
+Arguments:
+
+* `--help`: Print help information
 
 * `--all`: Remove all cache items
 
-* `-k / --key=<confirms,primitives,schema,valuesets,symbols>`: Remove specific key item
+* `--key=<confirms,primitives,schema,valuesets,symbols,intermediate_types>`: Remove specific cache item
 
-### devbox
+### docker-image
 
-Work with devbox installation
+Aidbox docker image information
 
 Arguments:
 
 * `--help`: Print help information
+
+* `--tag=<edge,latest,stable>`: Image tag
+
+* `--image=<devbox,aidboxone,multibox>`: Image name
 
 #### Subcommands
 
-##### check-latest-version
+##### remote
 
-Check latest devbox version on dockerhub
-
-Arguments:
-
-* `--help`: Print help information
-
-* `-t=<edge,latest,stable>`: Devbox image tag
-
-##### update
-
-Pull latest images from DockerHub
+Compare image version on dockerhub with local
 
 Arguments:
 
 * `--help`: Print help information
 
-* `-t=<edge,latest,stable>`: Devbox image tag
+##### pull
+
+Pull image from DockerHub
+
+Arguments:
+
+* `--help`: Print help information
 
 ### box
 
@@ -131,6 +155,10 @@ Interact with box instance
 Arguments:
 
 * `--help`: Print help information
+
+* `--config`: Config dir path
+
+* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
 
 #### Subcommands
 

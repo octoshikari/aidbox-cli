@@ -1,3 +1,4 @@
+use crate::config::default_config_arg;
 use clap::{Arg, ArgMatches, Command};
 use log::error;
 
@@ -16,6 +17,7 @@ pub fn commands() -> Command<'static> {
   return Command::new("generator")
       .about("Generate some useful things")
       .arg_required_else_help(true)
+      .args(default_config_arg())
       .subcommand(types_command())
       .subcommand(Command::new("sample").about("Create sample resource"))
       .subcommand(Command::new("warm-up")

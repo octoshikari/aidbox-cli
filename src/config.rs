@@ -1,4 +1,4 @@
-use clap::ArgMatches;
+use clap::{Arg, ArgMatches, ValueHint};
 use log::info;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -74,4 +74,29 @@ impl Config {
       info!("Config file has been saved on disk");
     };
   }
+}
+
+pub fn default_config_arg() -> Vec<Arg<'static>> {
+  let path: &'static mut PathBuf = Box::leak(Box::new(dirs::home_dir().unwrap()));
+
+  path.push(".aidbox");
+
+  let config_path: &'static str = Box::leak(Box::new(path.to_str().unwrap()));
+
+  return vec![
+    Arg::new("config")
+      .long("config")
+      .global(true)
+      .value_hint(ValueHint::DirPath)
+      .help("Config dir path")
+      .default_value(config_path),
+    Arg::new("instance")
+      .long("instance")
+      .global(true)
+      .value_hint(ValueHint::DirPath)
+      .help(
+        "Save box config under specific key. If key already exists then value will be overwritten",
+      )
+      .default_value("default"),
+  ];
 }
