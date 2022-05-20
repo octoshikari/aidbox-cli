@@ -1,6 +1,8 @@
 use crate::config::{BoxInstance, Config};
+use crate::generator::helpers::capitalize;
 use crate::r#box::requests::{create_box, ConnectionConfig};
 use clap::ArgMatches;
+use console::{style, Emoji};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password};
 use log::error;
@@ -102,8 +104,20 @@ pub fn get_box_info(sub_matches: &ArgMatches) {
     let instance = config.boxes.get(key).unwrap();
 
     match &instance.box_info {
-      Some(info) => println!("{}", serde_json::to_string_pretty(info).unwrap()),
-      None => eprintln!("Box info doesn't exist. Please run --configure"),
+      Some(info) => {
+        for (key, value) in info.as_object().unwrap().iter() {
+          println!(
+            "{0: <20} {1} {2}",
+            style(capitalize(key)).cyan(),
+            Emoji("▶️", "->"),
+            style(value.as_str().unwrap().to_string()).italic()
+          );
+        }
+      },
+      None => eprintln!(
+        "Box info doesn't exist. Please run {}'",
+        style("box configure").cyan()
+      ),
     }
   }
 }

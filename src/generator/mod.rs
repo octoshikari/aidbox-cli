@@ -8,7 +8,7 @@ use crate::r#box::matches::get_config_or_error;
 use crate::r#box::requests::{create_box, ConnectionConfig};
 
 mod cache;
-mod helpers;
+pub mod helpers;
 mod reader;
 mod types;
 
