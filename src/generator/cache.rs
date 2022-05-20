@@ -1,4 +1,5 @@
 use clap::ArgMatches;
+use console::{style, Emoji};
 use human_bytes::human_bytes;
 use log::{error, info};
 use serde::de::DeserializeOwned;
@@ -211,7 +212,7 @@ fn cache_stats(sub_matches: &ArgMatches) {
   if cache_folder.exists() {
     let mut total_size: f64 = 0.0;
 
-    println!("Cache items for instance '{}':", instance);
+    println!("{} Items for {}:", Emoji("💾", ""), style(instance).green());
     println!("-----------------------------------------");
 
     for file in fs::read_dir(&cache_folder).unwrap() {
@@ -221,17 +222,14 @@ fn cache_stats(sub_matches: &ArgMatches) {
       total_size += metadata.len() as f64;
 
       println!(
-        "{0: <30} | {1: <10}",
+        "{0: <30} {1} {2: <10}",
         file_path.to_str().unwrap().split('/').last().unwrap(),
+        Emoji("▶️", "->"),
         human_bytes(metadata.len() as f64)
       );
     }
     println!("-----------------------------------------");
-    println!(
-      "Total cache size for instance '{}' - {}",
-      instance,
-      human_bytes(total_size)
-    )
+    println!("Total size: {}", human_bytes(total_size))
   } else {
     error!("Cache folder doesn't exist")
   }
