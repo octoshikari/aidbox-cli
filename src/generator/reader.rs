@@ -603,9 +603,11 @@ async fn parse_symbol(
     if resource_name == "Reference" {
       return Ok(None);
     }
+    if resource_name != "Patient" {
+      return Ok(None);
+    }
 
     let confirms = init_confirms(box_instance, cache, &resource_name, &definition).await?;
-
     if tags.len() == 1 && tags[0] == "zen/schema" {
       return if !tags.contains(&"zenbox/Resource") {
         if definition.get("keys").is_none() {

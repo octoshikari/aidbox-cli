@@ -61,11 +61,11 @@ pub async fn get_confirms(
         Some(it) => it.to_owned(),
       };
       if element.get("fhir/polymorphic").is_none() {
-        cache.confirms.insert(
-          confirm.to_string(),
-          serde_json::to_value(&resource_name).unwrap(),
-        );
-        result.insert(resource_name.to_string());
+        let name = get_name(&element);
+        cache
+          .confirms
+          .insert(confirm.to_string(), serde_json::to_value(&name).unwrap());
+        result.insert(name.to_string());
       } else {
         // TODO: Need understand how ot process this
       }

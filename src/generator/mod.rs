@@ -1,16 +1,21 @@
 use crate::config::default_config_arg;
 use clap::{Arg, ArgMatches, Command};
+use console::style;
 use log::error;
 
-use crate::generator::cache::cache_command;
-use crate::generator::helpers::warm_up_definitions;
-use crate::generator::types::{types_command, types_match};
+use self::cache::cache_command;
+use self::helpers::warm_up_definitions;
+use self::types::generate::generate;
+use self::types::types_command;
 use crate::r#box::matches::get_config_or_error;
 use crate::r#box::requests::{create_box, ConnectionConfig};
+
+use self::sample::{sample_commands, sample_match};
 
 mod cache;
 pub mod helpers;
 mod reader;
+mod sample;
 mod types;
 
 pub fn commands() -> Command<'static> {
@@ -19,13 +24,13 @@ pub fn commands() -> Command<'static> {
       .arg_required_else_help(true)
       .args(default_config_arg())
       .subcommand(types_command())
-      .subcommand(Command::new("sample").about("Create sample resource"))
+      .subcommand(sample_commands())
       .subcommand(Command::new("warm-up")
           .args(vec![Arg::new("include-profiles")
                          .long("include-profiles")
                          .takes_value(false)
                          .help("Include profiles")])
-          .about("Preload and parse resource definition from box. Please use this command before other commands"))
+          .about("Pre-load and parse resource definition from box. Please use this command before other commands"))
       .subcommand(Command::new("cache").about("Cache commands").arg_required_else_help(true)
           .subcommand(Command::new("stats").about("Show cache statistic"))
           .subcommand(Command::new("rm").about("Remove specific or all cache item").arg_required_else_help(true)
@@ -62,9 +67,9 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
               cache_folder.push(key);
 
               match cache_folder.exists() {
-                true => types_match(sub_matches, instance, key, config).await,
+                true => generate(sub_matches, instance, config.config_dir, key).await,
                 false => {
-                  error!("Please run 'generator warm-up'");
+                  error!("Please run '{}'", style("aidbox generator warm-up").cyan());
                   std::process::exit(0);
                 },
               };
@@ -78,12 +83,26 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
           },
         }
       } else {
-        error!("Please run 'box configure'")
+        error!("Please run '{}'", style("box configure").cyan())
       }
     },
     ("cache", sub_matches) => cache_command(sub_matches),
-    ("sample", _sub_matches) => {
-      todo!();
+    ("sample", sub_matches) => {
+      if let Ok((config, key)) = get_config_or_error(sub_matches) {
+        let mut cache_folder = config.clone().config_dir;
+        cache_folder.push(".cache");
+        cache_folder.push(key);
+
+        match cache_folder.exists() {
+          true => sample_match(sub_matches, cache_folder).await,
+          false => {
+            error!("Please run '{}'", style("aidbox generator warm-up").cyan());
+            std::process::exit(0);
+          },
+        };
+      } else {
+        error!("Please run '{}'", style("box configure").cyan())
+      }
     },
     ("warm-up", sub_matches) => {
       if let Ok((config, key)) = get_config_or_error(sub_matches) {
@@ -116,7 +135,7 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
           },
         }
       } else {
-        error!("Please run 'box configure'")
+        error!("Please run '{}'", style("box configure").cyan())
       }
     },
     (name, _) => {
