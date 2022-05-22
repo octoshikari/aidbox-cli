@@ -8,10 +8,7 @@ use crate::r#box::requests::BoxClient;
 
 use self::writer::write_types;
 
-use super::{
-  cache::create_cache,
-  reader::{generate_types, read_schema},
-};
+use super::{cache::create_cache, reader::read_schema};
 
 pub fn types_command() -> Command<'static> {
   return Command::new("types")
@@ -69,28 +66,12 @@ pub async fn generate(
     },
   };
 
-  // let types = match generate_types(
-  //   instance,
-  //   &mut cache,
-  //   sub_matches.is_present("include-profiles"),
-  // )
-  // .await
-  // {
-  //   Ok(it) => {
-  //     info!("Intermediate types ready");
-  //     it
-  //   },
-  //   Err(err) => {
-  //     error!("{:#?}", err);
-  //     exit(0);
-  //   },
-  // };
-  // match cache.save_intermediate_types(&types) {
-  //   Ok(..) | Err(..) => {},
-  // }
-  // match cache.save() {
-  //   Ok(..) | Err(..) => {},
-  // }
+  match cache.save_intermediate_types(&types) {
+    Ok(..) | Err(..) => {},
+  }
+  match cache.save() {
+    Ok(..) | Err(..) => {},
+  }
   // write_types(
   //   types,
   //   cache,

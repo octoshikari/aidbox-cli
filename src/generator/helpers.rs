@@ -1,5 +1,4 @@
 use crate::generator::cache::{create_cache, Cache};
-use crate::generator::reader::generate_types;
 use crate::helpers::kebab_to_camel;
 use crate::r#box::requests::BoxClient;
 use log::{error, info};
@@ -8,6 +7,8 @@ use std::collections::{HashMap, HashSet};
 use std::error::Error;
 use std::path::PathBuf;
 use std::process::exit;
+
+use super::reader::read_schema;
 
 pub async fn get_symbol(
   box_instance: &BoxClient,
@@ -278,11 +279,8 @@ pub async fn warm_up_definitions(
       it
     },
   };
-  let types = match generate_types(instance, &mut cache, include_profiles).await {
-    Ok(it) => {
-      info!("Intermediate types ready");
-      it
-    },
+  let types = match read_schema(instance, &mut cache, include_profiles).await {
+    Ok(it) => it,
     Err(err) => {
       error!("{:#?}", err);
       exit(0);

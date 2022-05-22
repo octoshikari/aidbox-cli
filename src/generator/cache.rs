@@ -11,6 +11,8 @@ use std::fs::File;
 use std::io::Error;
 use std::path::{Path, PathBuf};
 
+use super::common::Element;
+
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
 pub struct TypeElementSubType {
   pub description: Option<String>,
@@ -46,12 +48,7 @@ pub struct Cache {
 }
 
 impl Cache {
-  pub fn save_intermediate_types(
-    &self,
-    types: &HashMap<String, TypeElementPart>,
-  ) -> Result<(), Error> {
-    info!("Save intermediate types into file...");
-
+  pub fn save_intermediate_types(&self, types: &HashMap<String, Element>) -> Result<(), Error> {
     return match serde_json::to_writer(
       &File::create(format!(
         "{}/{}.json",
