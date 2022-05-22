@@ -1,6 +1,7 @@
 use crate::generator::cache::{create_cache, Cache};
 use crate::generator::reader::generate_types;
-use crate::r#box::requests::BoxConfig;
+use crate::helpers::kebab_to_camel;
+use crate::r#box::requests::BoxClient;
 use log::{error, info};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -9,7 +10,7 @@ use std::path::PathBuf;
 use std::process::exit;
 
 pub async fn get_symbol(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   symbol: &String,
 ) -> Result<HashMap<String, Value>, Box<dyn Error>> {
@@ -24,7 +25,7 @@ pub async fn get_symbol(
 }
 
 pub async fn get_value_set(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   symbol: &str,
 ) -> Result<Vec<String>, Box<dyn Error>> {
@@ -41,7 +42,7 @@ pub async fn get_value_set(
 }
 
 pub async fn get_confirms(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   confirms: Vec<&str>,
   resource_name: &str,
@@ -143,7 +144,7 @@ pub fn get_description_value(definition: &Value) -> Option<String> {
 }
 
 pub async fn init_confirms(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &HashMap<String, Value>,
@@ -167,7 +168,7 @@ pub async fn init_confirms(
 }
 
 pub async fn init_reference_confirms_value(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &Value,
@@ -189,7 +190,7 @@ pub async fn init_reference_confirms_value(
 }
 
 pub async fn init_confirms_value(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &Value,
@@ -224,29 +225,6 @@ pub fn normalize_confirms(confirms: &[String], resource_name: &str) -> Option<Ve
         .collect(),
     )
   };
-}
-
-pub fn capitalize(s: &str) -> String {
-  let mut c = s.chars();
-  match c.next() {
-    None => String::new(),
-    Some(f) => f.to_uppercase().chain(c).collect(),
-  }
-}
-
-pub fn kebab_to_camel(item: &str) -> String {
-  let v: Vec<_> = item
-    .split('-')
-    .enumerate()
-    .map(|(idx, item)| {
-      if idx == 0 {
-        item.to_string()
-      } else {
-        capitalize(item)
-      }
-    })
-    .collect();
-  v.join("")
 }
 
 pub fn zen_path_to_name(def: &Value) -> String {
@@ -285,7 +263,7 @@ pub fn key_required(key: String, require: bool) -> String {
 
 pub async fn warm_up_definitions(
   config_dir: PathBuf,
-  instance: BoxConfig,
+  instance: BoxClient,
   include_profiles: bool,
   instance_tag: &str,
 ) {
@@ -315,45 +293,5 @@ pub async fn warm_up_definitions(
   }
   match cache.save() {
     Ok(..) | Err(..) => {},
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use proptest::proptest;
-
-  #[test]
-  fn test_capitalize() {
-    assert_eq!(capitalize("test"), "Test".to_string());
-  }
-
-  #[test]
-  fn test_kebab_to_camel() {
-    assert_eq!(
-      kebab_to_camel("test-case-string"),
-      "testCaseString".to_string()
-    );
-  }
-
-  proptest! {
-      #[test]
-      fn capitalize_idempotent(s in "[a-z]{1,10}") {
-          let result = capitalize(&s);
-
-          assert_eq!(
-              result,
-              capitalize(result.as_str())
-          )
-      }
-      #[test]
-      fn test_key_required(s in "[a-z]{1,10}", require: bool) {
-          let result = key_required(s.clone(), require);
-
-          assert_eq!(
-              result,
-              key_required(s, require)
-          )
-      }
   }
 }

@@ -3,16 +3,16 @@ use clap::{Arg, ArgMatches, Command};
 use console::style;
 use log::error;
 
-use self::cache::cache_command;
 use self::helpers::warm_up_definitions;
-use self::types::generate::generate;
-use self::types::types_command;
+use self::types::generate;
+use self::{cache::cache_command, types::types_command};
 use crate::r#box::matches::get_config_or_error;
-use crate::r#box::requests::{create_box, ConnectionConfig};
+use crate::r#box::requests::create_box;
 
 use self::sample::{sample_commands, sample_match};
 
 mod cache;
+mod common;
 pub mod helpers;
 mod reader;
 mod sample;
@@ -52,12 +52,7 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
       if let Ok((config, key)) = get_config_or_error(sub_matches) {
         let box_config = config.boxes.get(key).unwrap();
 
-        let box_check = create_box(ConnectionConfig {
-          base_url: box_config.url.clone(),
-          username: box_config.client.clone(),
-          secret: box_config.secret.clone(),
-        })
-        .await;
+        let box_check = create_box(box_config.to_owned()).await;
 
         match box_check {
           Ok(instance) => match instance.get_user_info().await {
@@ -108,12 +103,7 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
       if let Ok((config, key)) = get_config_or_error(sub_matches) {
         let box_config = config.boxes.get(key).unwrap();
 
-        let box_check = create_box(ConnectionConfig {
-          base_url: box_config.url.clone(),
-          username: box_config.client.clone(),
-          secret: box_config.secret.clone(),
-        })
-        .await;
+        let box_check = create_box(box_config.to_owned()).await;
 
         match box_check {
           Ok(instance) => match instance.get_user_info().await {

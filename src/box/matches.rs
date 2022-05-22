@@ -1,6 +1,5 @@
 use crate::config::{BoxInstance, Config};
-use crate::generator::helpers::capitalize;
-use crate::r#box::requests::{create_box, ConnectionConfig};
+use crate::r#box::requests::create_box;
 use clap::ArgMatches;
 use console::{style, Emoji};
 use dialoguer::theme::ColorfulTheme;
@@ -32,14 +31,18 @@ pub async fn configure(sub_matches: &ArgMatches) {
     .with_prompt("Client secret")
     .interact()
     .unwrap();
+
   let target_password = match password.is_empty() {
     true => current_password.unwrap(),
     false => password,
   };
-  let box_check = create_box(ConnectionConfig {
-    base_url: url.clone(),
-    username: username.clone(),
+
+  let box_check = create_box(BoxInstance {
+    url: url.clone(),
+    client: username.clone(),
     secret: target_password.clone(),
+    user_info: None,
+    box_info: None,
   })
   .await;
 
@@ -108,7 +111,7 @@ pub fn get_box_info(sub_matches: &ArgMatches) {
         for (key, value) in info.as_object().unwrap().iter() {
           println!(
             "{0: <20} {1} {2}",
-            style(capitalize(key)).cyan(),
+            style(crate::helpers::capitalize(key)).cyan(),
             Emoji("▶️", "->"),
             style(value.as_str().unwrap().to_string()).italic()
           );
@@ -132,12 +135,7 @@ pub async fn execute_sql(sub_matches: &ArgMatches) {
     } else {
       let sql_file = file.unwrap();
 
-      let box_check = create_box(ConnectionConfig {
-        base_url: box_config.url.clone(),
-        username: box_config.client.clone(),
-        secret: box_config.secret.clone(),
-      })
-      .await;
+      let box_check = create_box(box_config.to_owned()).await;
 
       match box_check {
         Ok(instance) => match instance.get_user_info().await {

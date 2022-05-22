@@ -2,6 +2,7 @@ mod r#box;
 mod config;
 mod docker;
 mod generator;
+pub mod helpers;
 mod md;
 
 use crate::md::app_to_md;

@@ -4,15 +4,17 @@ use crate::generator::helpers::{
   get_value_set, init_confirms, init_confirms_value, init_reference_confirms_value,
   is_persistent_any, is_type_and_not_map, normalize_confirms, wrap_key, zen_path_to_name,
 };
-use crate::r#box::requests::BoxConfig;
+use crate::r#box::requests::BoxClient;
 use indicatif::{ProgressBar, ProgressStyle};
 use log::{info, warn};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 
+use super::common::{Element, ElementType, ElementWrapper};
+
 async fn parse_vector(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   every: &Value,
@@ -168,7 +170,7 @@ async fn parse_vector(
 
 #[async_recursion::async_recursion]
 async fn parse_map(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   keys: &Value,
@@ -537,7 +539,7 @@ async fn parse_map(
 }
 
 async fn prepare_keys(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &HashMap<String, Value>,
@@ -576,7 +578,7 @@ async fn prepare_keys(
 }
 
 async fn parse_symbol(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   symbol: &String,
   include_profiles: bool,
@@ -810,7 +812,7 @@ fn type_ok(
 }
 
 pub async fn generate_types(
-  box_instance: BoxConfig,
+  box_instance: BoxClient,
   cache: &mut Cache,
   include_profiles: bool,
 ) -> Result<HashMap<String, TypeElementPart>, Box<dyn Error>> {
@@ -960,4 +962,337 @@ fn deep_merge_sub_type(
     }
     new_result
   };
+}
+
+async fn read_symbol(
+  box_instance: &BoxClient,
+  cache: &mut Cache,
+  symbol: &String,
+  include_profiles: bool,
+) -> Result<Option<ElementWrapper>, Box<dyn Error>> {
+  let definition = get_symbol(box_instance, cache, symbol).await?;
+
+  if definition.get("zen/tags").is_some() {
+    let tags: Vec<_> = definition["zen/tags"]
+      .as_array()
+      .unwrap()
+      .iter()
+      .filter_map(|item| item.as_str())
+      .collect();
+
+    if tags.contains(&"zen.fhir/profile-schema") && !include_profiles {
+      return Ok(None);
+    }
+    if tags.contains(&"zen.fhir/search") || tags.contains(&"zenbox/rpc") {
+      return Ok(None);
+    }
+
+    let resource_name = get_name(&definition);
+
+    if resource_name == "Reference" {
+      return Ok(None);
+    }
+    if resource_name != "Patient" {
+      return Ok(None);
+    }
+
+    let confirms = init_confirms(box_instance, cache, &resource_name, &definition).await?;
+
+    return Ok(Some(ElementWrapper::new(
+      resource_name,
+      Element {
+        description: Some("t".to_string()),
+        source: true,
+        profile: false,
+        extends: None,
+        schema: ElementType::new(Some("t".to_string()), None, None),
+      },
+    )));
+  }
+
+  //   if tags.len() == 1 && tags[0] == "zen/schema" {
+  //     return if !tags.contains(&"zenbox/Resource") {
+  //       if definition.get("keys").is_none() {
+  //         warn!("No keys in simple schema {} {:#?}", symbol, definition);
+  //         Ok(None)
+  //       } else {
+  //         Ok(Some(TypeElement {
+  //           name: resource_name.clone(),
+  //           element: TypeElementPart {
+  //             description: get_description(&definition),
+  //             sub_type: Some(prepare_keys(box_instance, cache, &resource_name, &definition).await?),
+  //             source: true,
+  //             profile: false,
+  //             extends: normalize_confirms(&confirms, &resource_name),
+  //             plain_type: None,
+  //           },
+  //         }))
+  //       }
+  //     } else {
+  //       warn!("Unknown simple schema {} {:#?}", symbol, definition);
+  //       Ok(None)
+  //     };
+  //   } else if tags.contains(&"zenbox/persistent") {
+  //     return if is_persistent_any(&definition) {
+  //       let mut sub_type = HashMap::new();
+  //       sub_type.insert(
+  //         "[key: string]".to_string(),
+  //         TypeElementSubType {
+  //           array: false,
+  //           require: false,
+  //           extends: None,
+  //           plain_type: Some("any".to_string()),
+  //           sub_type: None,
+  //           description: None,
+  //         },
+  //       );
+  //       Ok(Some(TypeElement {
+  //         name: resource_name.clone(),
+  //         element: TypeElementPart {
+  //           description: get_description(&definition),
+  //           sub_type: Some(sub_type),
+  //           source: true,
+  //           profile: false,
+  //           extends: normalize_confirms(&confirms, &resource_name),
+  //           plain_type: None,
+  //         },
+  //       }))
+  //     } else {
+  //       Ok(Some(TypeElement {
+  //         name: resource_name.clone(),
+  //         element: TypeElementPart {
+  //           description: get_description(&definition),
+  //           sub_type: Some(prepare_keys(box_instance, cache, &resource_name, &definition).await?),
+  //           source: true,
+  //           profile: false,
+  //           extends: Some(vec![format!("Resource<'{}'>", resource_name)]),
+  //           plain_type: None,
+  //         },
+  //       }))
+  //     };
+  //   } else if tags.contains(&"zen.fhir/structure-schema") {
+  //     if is_type_and_not_map(&definition) {
+  //       let primitive_type = convert_primitive(definition["type"].as_str().unwrap());
+
+  //       if cache.primitives.get(&resource_name).is_none() {
+  //         cache.primitives.insert(
+  //           resource_name.clone(),
+  //           serde_json::to_value(&primitive_type).unwrap(),
+  //         );
+  //       }
+  //       return Ok(Some(TypeElement {
+  //         name: resource_name.clone(),
+  //         element: TypeElementPart {
+  //           description: get_description(&definition),
+  //           sub_type: None,
+  //           source: true,
+  //           profile: false,
+  //           extends: None,
+  //           plain_type: Some(primitive_type),
+  //         },
+  //       }));
+  //     } else if definition.get("type").is_none() {
+  //       if !definition["zen/name"]
+  //         .as_str()
+  //         .unwrap()
+  //         .split('.')
+  //         .collect::<Vec<&str>>()
+  //         .get(1)
+  //         .unwrap()
+  //         .contains('-')
+  //       {
+  //         return if confirms.join(", ") != resource_name {
+  //           Ok(Some(TypeElement {
+  //             name: resource_name.clone(),
+  //             element: TypeElementPart {
+  //               description: get_description(&definition),
+  //               sub_type: None,
+  //               source: true,
+  //               profile: false,
+  //               extends: normalize_confirms(&confirms, &resource_name),
+  //               plain_type: None,
+  //             },
+  //           }))
+  //         } else {
+  //           Ok(Some(TypeElement {
+  //             name: zen_path_to_name(&definition["zen/name"]),
+  //             element: TypeElementPart {
+  //               description: get_description(&definition),
+  //               sub_type: None,
+  //               source: true,
+  //               profile: false,
+  //               extends: normalize_confirms(&confirms, &resource_name),
+  //               plain_type: None,
+  //             },
+  //           }))
+  //         };
+  //       }
+  //     } else {
+  //       let mut keys = prepare_keys(box_instance, cache, &resource_name, &definition).await?;
+  //       return if resource_name == "Resource" {
+  //         keys.insert(
+  //           "resourceType".to_string(),
+  //           TypeElementSubType {
+  //             description: None,
+  //             require: true,
+  //             sub_type: None,
+  //             plain_type: Some("T".to_string()),
+  //             extends: None,
+  //             array: false,
+  //           },
+  //         );
+  //         Ok(Some(TypeElement {
+  //           name: String::from("Resource<T>"),
+  //           element: TypeElementPart {
+  //             description: get_description(&definition),
+  //             sub_type: Some(keys),
+  //             source: true,
+  //             profile: false,
+  //             extends: None,
+  //             plain_type: None,
+  //           },
+  //         }))
+  //       } else if resource_name == "DomainResource" {
+  //         Ok(Some(TypeElement {
+  //           name: String::from("DomainResource"),
+  //           element: TypeElementPart {
+  //             description: get_description(&definition),
+  //             sub_type: Some(keys),
+  //             source: true,
+  //             extends: None,
+  //             profile: false,
+  //             plain_type: None,
+  //           },
+  //         }))
+  //       } else {
+  //         Ok(Some(TypeElement {
+  //           name: resource_name.clone(),
+  //           element: TypeElementPart {
+  //             description: get_description(&definition),
+  //             sub_type: Some(keys),
+  //             source: true,
+  //             profile: false,
+  //             extends: normalize_confirms(&confirms, &resource_name),
+  //             plain_type: None,
+  //           },
+  //         }))
+  //       };
+  //     }
+  //   } else {
+  //     return Ok(Some(type_ok(
+  //       resource_name.clone(),
+  //       definition.clone(),
+  //       confirms,
+  //       tags.contains(&"zen.fhir/profile-schema"),
+  //       prepare_keys(box_instance, cache, resource_name.as_str(), &definition).await?,
+  //     )));
+  //   }
+  // }
+  Ok(None)
+}
+
+pub async fn read_schema(
+  box_instance: BoxClient,
+  cache: &mut Cache,
+  include_profiles: bool,
+) -> Result<HashMap<String, TypeElementPart>, Box<dyn Error>> {
+  info!("Start load symbols...");
+  let symbols = match box_instance
+    .load_all_symbols(cache.cache_path.clone())
+    .await
+  {
+    Ok(it) => it,
+    Err(err) => return Err(err),
+  };
+  let pb = ProgressBar::new(symbols.len() as u64);
+  pb.set_style(
+    ProgressStyle::with_template("{spinner:.green} [{elapsed}] [{bar:40.cyan/red}] ({pos}/{len})")
+      .unwrap()
+      .progress_chars("#>-"),
+  );
+
+  let mut result: Vec<ElementWrapper> = Vec::new();
+
+  for symbol in symbols.iter() {
+    if let Ok(it) = read_symbol(&box_instance, cache, symbol, include_profiles).await {
+      if it.is_some() {
+        result.push(it.unwrap())
+      }
+    };
+    pb.inc(1);
+  }
+
+  pb.finish();
+
+  info!(
+    "Symbols {:#?} of {:#?} processed in {:?}",
+    result.len(),
+    symbols.len(),
+    (pb.elapsed().as_secs_f64() * 100f64).floor() / 100f64
+  );
+
+  let mut result_types: HashMap<String, TypeElementPart> = HashMap::new();
+
+  println!("{:#?}", result);
+
+  // result.iter().for_each(
+  //   |new_element| match result_types.get(new_element.name.as_str()) {
+  //     Some(old_element) => {
+  //       if new_element.element.profile {
+  //         let merged_types = match old_element.sub_type.is_some() {
+  //           true => match new_element.element.sub_type.is_some() {
+  //             true => Some(deep_merge_sub_type(
+  //               old_element.sub_type.clone().unwrap(),
+  //               new_element.element.sub_type.clone().unwrap(),
+  //             )),
+  //             false => old_element.sub_type.clone(),
+  //           },
+  //           false => new_element.element.sub_type.clone(),
+  //         };
+
+  //         result_types.insert(
+  //           new_element.name.to_string(),
+  //           TypeElementPart {
+  //             description: new_element.element.description.clone(),
+  //             sub_type: merged_types,
+  //             source: true,
+  //             profile: new_element.element.profile,
+  //             extends: new_element.element.extends.clone(),
+  //             plain_type: new_element.element.plain_type.clone(),
+  //           },
+  //         )
+  //       } else {
+  //         let merged_types = match new_element.element.sub_type.is_some() {
+  //           true => match new_element.element.sub_type.is_some() {
+  //             true => match old_element.sub_type.is_some() {
+  //               true => Some(deep_merge_sub_type(
+  //                 new_element.element.sub_type.clone().unwrap(),
+  //                 old_element.sub_type.clone().unwrap(),
+  //               )),
+  //               false => Some(new_element.element.sub_type.clone().unwrap()),
+  //             },
+  //             false => new_element.element.sub_type.clone(),
+  //           },
+  //           false => old_element.sub_type.clone(),
+  //         };
+  //         result_types.clone().insert(
+  //           new_element.name.to_string(),
+  //           TypeElementPart {
+  //             description: old_element.description.clone(),
+  //             sub_type: merged_types,
+  //             source: false,
+  //             profile: old_element.profile,
+  //             extends: old_element.extends.clone(),
+  //             plain_type: old_element.plain_type.clone(),
+  //           },
+  //         )
+  //       };
+  //     },
+  //     None => {
+  //       result_types.insert(new_element.name.to_string(), new_element.element.clone());
+  //     },
+  //   },
+  // );
+
+  Ok(result_types)
 }
