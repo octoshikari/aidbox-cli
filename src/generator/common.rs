@@ -17,23 +17,20 @@ impl ElementWrapper {
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
 pub struct Element {
   pub description: Option<String>,
-  pub source: bool,
   pub profile: bool,
   pub extends: Option<Vec<String>>,
-  pub schema: ElementType,
+  pub schema: Option<HashMap<String, ElementSchema>>,
 }
 
 impl Element {
   pub fn new(
     description: Option<String>,
-    source: bool,
     profile: bool,
     extends: Option<Vec<String>>,
-    schema: ElementType,
+    schema: Option<HashMap<String, ElementSchema>>,
   ) -> Self {
     Self {
       description,
-      source,
       profile,
       extends,
       schema,
@@ -42,32 +39,37 @@ impl Element {
 }
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
-pub struct ElementType {
+pub struct ElementSchema {
+  pub extends: Option<Vec<String>>,
+  pub is_array: bool,
+  pub is_reference: bool,
+  pub require: bool,
   pub description: Option<String>,
-  pub sub_type: Option<HashMap<String, String>>,
+  pub sub_type: Option<HashMap<String, ElementSchema>>,
   pub plain_type: Option<String>,
+  pub values: Option<Vec<String>>,
 }
 
-impl ElementType {
+impl ElementSchema {
   pub fn new(
+    is_array: bool,
+    is_reference: bool,
+    require: bool,
     description: Option<String>,
-    sub_type: Option<HashMap<String, String>>,
+    sub_type: Option<HashMap<String, ElementSchema>>,
     plain_type: Option<String>,
+    values: Option<Vec<String>>,
+    extends: Option<Vec<String>>,
   ) -> Self {
     Self {
+      is_array,
+      require,
+      is_reference,
       description,
       sub_type,
       plain_type,
+      values,
+      extends,
     }
   }
 }
-
-// #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
-// pub struct TypeElementSubType {
-//   pub description: Option<String>,
-//   pub require: bool,
-//   pub sub_type: Option<HashMap<String, TypeElementSubType>>,
-//   pub plain_type: Option<String>,
-//   pub extends: Option<Vec<String>>,
-//   pub array: bool,
-// }

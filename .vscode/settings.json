@@ -14,5 +14,6 @@
       "editorInlayHint.typeForeground": "#fdb6fdf0",
       "editorInlayHint.parameterForeground": "#fdb6fdf0"
     }
-  }
+  },
+  "discord.enabled": true
 }
