@@ -59,7 +59,7 @@ dependencies = [
  "console 0.15.0",
  "dialoguer",
  "dirs",
- "dprint-core 0.57.0",
+ "dprint-core 0.58.0",
  "dprint-development",
  "dprint-plugin-typescript",
  "env_logger",
@@ -481,9 +481,9 @@ dependencies = [
 
 [[package]]
 name = "dprint-core"
-version = "0.57.0"
+version = "0.58.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57f491f0f9f8c4afb7f949074ec4bd2bac93cc081056e764f14744fc7b89d0da"
+checksum = "726eefa08eda443bc9921d5dc244f8ebd2da6198cde50198eeaf84543222ddcb"
 dependencies = [
  "anyhow",
  "bumpalo",
