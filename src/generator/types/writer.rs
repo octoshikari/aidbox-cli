@@ -1,72 +1,129 @@
-use crate::generator::cache::{Cache, TypeElementPart, TypeElementSubType};
+use crate::generator::cache::Cache;
+use crate::generator::common::{Element, ElementSchema};
 use crate::generator::helpers::key_required;
 use dprint_plugin_typescript::configuration::*;
 use dprint_plugin_typescript::*;
+use log::error;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
-fn write_nested_type(
-  map: HashMap<String, TypeElementSubType>,
+fn build_any(value: ElementSchema) -> String {
+  if value.extends.is_some() {
+    println!("in any type {:#?}", value);
+  }
+  let is_reference = value.is_reference;
+  let is_array = value.is_array;
+
+  return if is_array {
+    if is_reference {
+      format!("Array<Reference>")
+    } else {
+      format!("Array<any>")
+    }
+  } else if is_reference {
+    format!("Reference")
+  } else {
+    "any".to_string()
+  };
+}
+
+fn build_plain_type(value: ElementSchema) -> String {
+  if value.extends.is_some() {
+    println!("in plain type {:#?}", value);
+  }
+  let plain_type = value.plain_type.unwrap();
+  let is_reference = value.is_reference;
+  let is_array = value.is_array;
+
+  return if is_array {
+    if is_reference {
+      format!("Array<Reference<'{}'>>", plain_type)
+    } else {
+      format!("Array<{}>", plain_type)
+    }
+  } else if is_reference {
+    format!("Reference<'{}'>", plain_type)
+  } else {
+    plain_type
+  };
+}
+
+fn build_values(value: ElementSchema) -> String {
+  if value.extends.is_some() {
+    println!("In values {:#?}", value);
+  }
+  let values = value.values.unwrap();
+  let is_reference = value.is_reference;
+  let is_array = value.is_array;
+
+  return if is_array {
+    if is_reference {
+      format!(
+        "Array<Reference<{}>>",
+        values
+          .iter()
+          .map(|it| format!("'{}'", it))
+          .collect::<Vec<_>>()
+          .join(" | ")
+      )
+    } else {
+      format!("Array<{}>", values.join(" | "))
+    }
+  } else if is_reference {
+    format!(
+      "Reference<{}>",
+      values
+        .iter()
+        .map(|it| format!("'{}'", it))
+        .collect::<Vec<_>>()
+        .join(" | ")
+    )
+  } else {
+    values.join(" | ")
+  };
+}
+
+fn typescript_write_nested_type(
+  map: HashMap<String, ElementSchema>,
   type_name: &str,
   result: &mut Vec<String>,
 ) {
   for (key, value) in map {
     if value.description.is_some() {
-      result.push(format!("/* {} */", value.description.unwrap()));
+      result.push(format!("/* {} */", value.clone().description.unwrap()));
     }
-    if value.plain_type.is_some() {
-      if type_name == "CodeableConcept<T = code>"
-        && value.plain_type.clone().unwrap().as_str() == "Array<Coding>"
-      {
-        result.push(format!(
-          "{}: Array<Coding<T>>;",
-          key_required(key, value.require)
-        ));
-      } else if type_name == "Coding<T = code>" && key.as_str() == "code" {
-        result.push(format!("{}: T;", key_required(key, value.require)));
-      } else {
-        result.push(format!(
-          "{}: {};",
-          key_required(key, value.require),
-          value.plain_type.unwrap()
-        ));
-      }
-    } else if value.array {
+    if value.values.is_some() {
       result.push(format!(
-        "{}: Array<{}",
+        "{}: {};",
         key_required(key, value.require),
-        match value.extends.is_some() {
-          true => match value.extends.clone().unwrap().is_empty() {
-            true => "{".to_string(),
-            false => format!("{} & {{", value.extends.unwrap().join(" & ")),
-          },
-          false => "{".to_string(),
-        }
+        build_values(value)
       ));
-      write_nested_type(value.sub_type.unwrap(), type_name, result);
-      result.push("}>;".to_string())
-    } else if value.extends.is_some() {
+    } else if value.plain_type.is_some() {
       result.push(format!(
-        "{}: Array<{}",
+        "{}: {};",
         key_required(key, value.require),
-        match value.extends.clone().unwrap().is_empty() {
-          false => format!("{} & {{", value.extends.unwrap().join(" & ")),
-          true => "{".to_string(),
-        }
+        build_plain_type(value)
       ));
-      write_nested_type(value.sub_type.unwrap(), type_name, result);
-      result.push("}>;".to_string())
+    } else if value.sub_type.is_none() & value.plain_type.is_none() & value.values.is_none() {
+      result.push(format!(
+        "{}: {};",
+        key_required(key, value.require),
+        build_any(value)
+      ));
     } else {
+      if (value.sub_type.is_none()) {
+        println!("{:#?}", value);
+      }
       result.push(format!("{}: {{", key_required(key, value.require)));
-      write_nested_type(value.sub_type.unwrap(), type_name, result);
+      typescript_write_nested_type(value.sub_type.unwrap(), type_name, result);
       result.push("};".to_string())
     }
   }
 }
 
-pub fn write_types(
-  types: HashMap<String, TypeElementPart>,
+fn write_typescript_types(
+  types: HashMap<String, Element>,
   cache: Cache,
   fhir: bool,
   output: String,
@@ -90,13 +147,13 @@ pub fn write_types(
     if value.description.is_some() {
       result.push(format!("/* {} */", value.description.unwrap()));
     }
-    if value.plain_type.is_some() {
+    if value.plain.is_some() {
       result.push(format!(
         "export type {} = {};",
         name.clone(),
-        value.plain_type.unwrap()
+        value.plain.unwrap()
       ))
-    } else if value.sub_type.is_none() && value.plain_type.is_none() {
+    } else if value.schema.is_none() && value.plain.is_none() {
       if value.extends.clone().is_some()
         && !value.extends.clone().unwrap().len() == 1
         && cache
@@ -131,15 +188,14 @@ pub fn write_types(
           None => "{ ".to_string(),
         }
       ));
-      write_nested_type(value.sub_type.unwrap(), &name, &mut result);
+      typescript_write_nested_type(value.schema.unwrap(), &name, &mut result);
 
       result.push("};\n".to_string());
     }
   }
   let result_types = result.join("\n");
-
   let config = ConfigurationBuilder::new()
-    .line_width(80)
+    .line_width(120)
     .quote_style(QuoteStyle::PreferSingle)
     .build();
 
@@ -147,4 +203,20 @@ pub fn write_types(
     .expect("Could not parse...");
   fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
     .expect("Expected to write to the file.");
+}
+
+pub fn write_types(
+  types: HashMap<String, Element>,
+  cache: Cache,
+  fhir: bool,
+  output: String,
+  target: &str,
+) {
+  match target {
+    "typescript" => write_typescript_types(types, cache, fhir, output),
+    _ => {
+      error!("Unknown target");
+      std::process::exit(0);
+    },
+  }
 }

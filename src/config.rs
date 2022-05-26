@@ -53,6 +53,7 @@ impl Config {
       boxes,
     }
   }
+
   pub fn update_boxes(&mut self, key: String, value: BoxInstance) {
     self.boxes.insert(key.clone(), value);
     if let Ok(..) = serde_json::to_writer(
