@@ -6,11 +6,15 @@ use crate::generator::helpers::{
   is_persistent_any, is_type_and_not_map, normalize_confirms, wrap_key, zen_path_to_name,
 };
 use crate::r#box::requests::BoxClient;
+use dprint_core::formatting::print;
 use indicatif::{ProgressBar, ProgressStyle};
+use itertools::Itertools;
 use log::{info, warn};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
+use std::thread;
+use std::time::Duration;
 
 use super::common::{Element, ElementSchema, ElementWrapper};
 
@@ -85,9 +89,10 @@ async fn read_vector(
             ))
           }
         } else {
-          println!("Vector value single confirm hz - {}", every);
+          println!("{:#?} - {:#?}", every, confirm);
+
           std::process::exit(0);
-          return Ok((false, Some("Array<any>".to_string()), None, false, None));
+          return Ok((true, None, None, false, Some(values)));
         }
       } else {
         println!(
@@ -180,7 +185,6 @@ async fn read_vector(
       };
     Ok((true, plain_type, None, false, values))
   } else {
-    warn!("Empty vector def {} for resource {}", every, resource_name);
     Ok((false, None, None, false, None))
   }
 }
@@ -676,14 +680,10 @@ async fn read_symbol(
       return Ok(None);
     }
 
-    if resource_name != "Patient" {
-      return Ok(None);
-    }
-
     let confirms = init_confirms(box_instance, cache, &resource_name, &definition).await?;
 
-    if tags.contains(&"zenbox/persistent") {
-      return if is_persistent_any(&definition) {
+    return if tags.contains(&"zenbox/persistent") {
+      if is_persistent_any(&definition) {
         let mut sub_type = HashMap::new();
 
         sub_type.insert(
@@ -721,7 +721,7 @@ async fn read_symbol(
             plain: None,
           },
         }))
-      };
+      }
     } else if tags.contains(&"zen.fhir/structure-schema") {
       if is_type_and_not_map(&definition) {
         let primitive_type = convert_primitive(definition["type"].as_str().unwrap());
@@ -732,7 +732,7 @@ async fn read_symbol(
             serde_json::to_value(&primitive_type).unwrap(),
           );
         }
-        return Ok(Some(ElementWrapper {
+        Ok(Some(ElementWrapper {
           name: resource_name.clone(),
           element: Element {
             description: get_description(&definition),
@@ -741,7 +741,7 @@ async fn read_symbol(
             schema: None,
             plain: Some(primitive_type),
           },
-        }));
+        }))
       } else if definition.get("type").is_none() {
         if !definition["zen/name"]
           .as_str()
@@ -752,7 +752,7 @@ async fn read_symbol(
           .unwrap()
           .contains('-')
         {
-          return if confirms.join(", ") != resource_name {
+          if confirms.join(", ") != resource_name {
             Ok(Some(ElementWrapper {
               name: resource_name.clone(),
               element: Element {
@@ -774,18 +774,14 @@ async fn read_symbol(
                 plain: None,
               },
             }))
-          };
+          }
         } else {
-          warn!(
-            "Should be process later {}",
-            definition.get("zen/file").unwrap()
-          );
-          return Ok(None);
+          Ok(None)
         }
       } else {
         let mut keys = read_keys(box_instance, cache, &resource_name, &definition).await?;
 
-        return if resource_name == "Resource" {
+        if resource_name == "Resource" {
           keys.insert(
             "resourceType".to_string(),
             ElementSchema {
@@ -821,10 +817,10 @@ async fn read_symbol(
               plain: None,
             },
           }))
-        };
+        }
       }
     } else {
-      return Ok(Some(ElementWrapper::new(
+      Ok(Some(ElementWrapper::new(
         resource_name.clone(),
         Element {
           description: get_description(&definition),
@@ -833,10 +829,22 @@ async fn read_symbol(
           schema: Some(read_keys(box_instance, cache, &resource_name, &definition).await?),
           plain: None,
         },
-      )));
-    }
+      )))
+    };
   }
   Ok(None)
+}
+
+async fn symbol_read(
+  box_instance: &BoxClient,
+  cache: &mut Cache,
+  symbol: &String,
+  include_profiles: bool,
+) -> Result<Option<ElementWrapper>, Box<dyn Error>> {
+  let definition = get_symbol(box_instance, cache, symbol).await?;
+  println!("{:#?}", definition);
+  std::process::exit(0);
+  return Ok(None);
 }
 
 pub async fn read_schema(
@@ -850,91 +858,76 @@ pub async fn read_schema(
 
   let pb = ProgressBar::new(symbols.len() as u64);
   pb.set_style(
-    ProgressStyle::with_template("{spinner:.green} [{elapsed}] [{bar:40.cyan/red}] ({pos}/{len})")
+    ProgressStyle::with_template("{spinner:.blue} [{bar:50.cyan/red}] ({pos}/{len}) {msg}")
       .unwrap()
+      .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
       .progress_chars("#>-"),
   );
 
   let mut result: Vec<ElementWrapper> = Vec::new();
 
   for symbol in symbols.iter() {
-    if let Ok(it) = read_symbol(&box_instance, cache, symbol, include_profiles).await {
+    if let Ok(it) = symbol_read(&box_instance, cache, symbol, include_profiles).await {
       if it.is_some() {
         result.push(it.unwrap())
       }
     };
     pb.inc(1);
   }
-
-  pb.finish();
-
-  info!(
-    "Symbols {:#?} of {:#?} processed in {:?}",
+  pb.finish_with_message(format!(
+    "{:#?} of {:#?} symbols processed in {:?}",
     result.len(),
     symbols.len(),
     (pb.elapsed().as_secs_f64() * 100f64).floor() / 100f64
-  );
+  ));
 
   let mut result_types: HashMap<String, Element> = HashMap::new();
-
-  result.iter().for_each(
-    |new_element| match result_types.get(new_element.name.as_str()) {
-      Some(old_element) => {
-        if new_element.element.profile {
-          let merged_types = match old_element.schema.is_some() {
-            true => match new_element.element.schema.is_some() {
-              true => Some(deep_merge_element_schema(
-                old_element.schema.clone().unwrap(),
-                new_element.element.schema.clone().unwrap(),
-              )),
-              false => old_element.schema.clone(),
-            },
-            false => new_element.element.schema.clone(),
-          };
-
-          result_types.insert(
-            new_element.name.to_string(),
-            Element {
-              description: new_element.element.description.clone(),
-              profile: new_element.element.profile,
-              extends: new_element.element.extends.clone(),
-              plain: new_element.element.plain.clone(),
-              schema: merged_types,
-            },
-          );
-        } else {
-          let merged_types = match new_element.element.schema.is_some() {
-            true => match new_element.element.schema.is_some() {
-              true => match old_element.schema.is_some() {
-                true => Some(deep_merge_element_schema(
-                  new_element.element.schema.clone().unwrap(),
-                  old_element.schema.clone().unwrap(),
-                )),
-                false => Some(new_element.element.schema.clone().unwrap()),
-              },
-              false => new_element.element.schema.clone(),
-            },
-            false => old_element.schema.clone(),
-          };
-          result_types.insert(
-            new_element.name.to_string(),
-            Element {
-              description: old_element.description.clone(),
-              profile: old_element.profile,
-              extends: old_element.extends.clone(),
-              plain: old_element.plain.clone(),
-              schema: merged_types,
-            },
-          );
-        };
-      },
-      None => {
-        result_types.insert(new_element.name.to_string(), new_element.element.clone());
-      },
-    },
-  );
-
-  println!("{:#?}", result_types);
+  //
+  // for new_element in result.iter() {
+  //   match result_types.get(new_element.name.as_str()) {
+  //     Some(old_element) => {
+  //       let merged_types = match new_element.clone().element.schema {
+  //         Some(el) => match old_element.clone().schema {
+  //           Some(old) => Some(deep_merge_element_schema(
+  //             old_element.schema.clone().unwrap(),
+  //             new_element.element.schema.clone().unwrap(),
+  //           )),
+  //           None => new_element.element.schema.clone(),
+  //         },
+  //         None => old_element.schema.clone(),
+  //       };
+  //
+  //       result_types.insert(
+  //         new_element.name.to_string(),
+  //         Element {
+  //           description: old_element.description.clone(),
+  //           profile: old_element.profile,
+  //           extends: match old_element.extends.clone() {
+  //             Some(it) => match new_element.element.extends.clone() {
+  //               Some(ri) => {
+  //                 let extends: Vec<_> = [it.as_slice(), ri.as_slice()]
+  //                   .concat()
+  //                   .iter()
+  //                   .unique()
+  //                   .map(String::to_string)
+  //                   .collect();
+  //
+  //                 Some(extends)
+  //               },
+  //               None => old_element.extends.clone(),
+  //             },
+  //             None => old_element.extends.clone(),
+  //           },
+  //           plain: old_element.plain.clone(),
+  //           schema: merged_types,
+  //         },
+  //       );
+  //     },
+  //     None => {
+  //       result_types.insert(new_element.name.to_string(), new_element.element.clone());
+  //     },
+  //   }
+  // }
 
   Ok(result_types)
 }

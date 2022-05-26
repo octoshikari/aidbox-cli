@@ -67,49 +67,42 @@ impl Cache {
   pub fn save(&self) -> Result<(), Error> {
     info!("Save result on filesystem started...");
 
-    if let Ok(..) = serde_json::to_writer(
+    serde_json::to_writer(
       &File::create(format!(
         "{}/{}.json",
         self.cache_path.to_str().unwrap(),
         "confirms"
       ))?,
       &self.confirms,
-    ) {
-      info!("Confirms list has been saved!");
-    };
+    )?;
 
-    if let Ok(..) = serde_json::to_writer(
+    serde_json::to_writer(
       &File::create(format!(
         "{}/{}.json",
         self.cache_path.to_str().unwrap(),
         "schema"
       ))?,
       &self.schema,
-    ) {
-      info!("Schema has been saved!");
-    };
+    )?;
 
-    if let Ok(..) = serde_json::to_writer(
+    serde_json::to_writer(
       &File::create(format!(
         "{}/{}.json",
         self.cache_path.to_str().unwrap(),
         "primitives"
       ))?,
       &self.primitives,
-    ) {
-      info!("Primitives list has been saved!");
-    };
+    )?;
 
-    if let Ok(..) = serde_json::to_writer(
+    serde_json::to_writer(
       &File::create(format!(
         "{}/{}.json",
         self.cache_path.to_str().unwrap(),
         "valuesets"
       ))?,
       &self.value_sets,
-    ) {
-      info!("Values sets has been saved!");
-    };
+    )?;
+
     Ok(())
   }
 }

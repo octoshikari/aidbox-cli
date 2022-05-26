@@ -1,3 +1,4 @@
+use itertools::Itertools;
 use std::collections::HashMap;
 
 use serde::Serialize;
@@ -21,24 +22,6 @@ pub struct Element {
   pub extends: Option<Vec<String>>,
   pub plain: Option<String>,
   pub schema: Option<HashMap<String, ElementSchema>>,
-}
-
-impl Element {
-  pub fn new(
-    description: Option<String>,
-    profile: bool,
-    extends: Option<Vec<String>>,
-    schema: Option<HashMap<String, ElementSchema>>,
-    plain: Option<String>,
-  ) -> Self {
-    Self {
-      description,
-      profile,
-      extends,
-      schema,
-      plain,
-    }
-  }
 }
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
@@ -84,7 +67,7 @@ pub fn deep_merge_element_schema(
   return if left == right {
     right
   } else {
-    let mut new_result: HashMap<String, ElementSchema> = HashMap::new();
+    let mut new_result: HashMap<String, ElementSchema> = left.clone();
     for (key, value) in left {
       match right.get(key.as_str()).is_some() {
         true => {
@@ -98,9 +81,9 @@ pub fn deep_merge_element_schema(
                   value.sub_type.clone().unwrap(),
                   element.sub_type.clone().unwrap(),
                 )),
-                false => element.sub_type.clone(),
+                false => value.sub_type.clone(),
               },
-              false => element.sub_type.clone(),
+              false => value.sub_type.clone(),
             };
 
             new_result.insert(
@@ -115,7 +98,15 @@ pub fn deep_merge_element_schema(
                 is_reference: element.is_reference,
                 values: match value.values {
                   Some(it) => match element.values {
-                    Some(ri) => Some([it.as_slice(), ri.as_slice()].concat()),
+                    Some(ri) => {
+                      let values = [it.as_slice(), ri.as_slice()]
+                        .concat()
+                        .iter()
+                        .unique()
+                        .map(String::to_string)
+                        .collect();
+                      Some(values)
+                    },
                     None => element.values,
                   },
                   None => element.values,

@@ -1,7 +1,7 @@
 mod writer;
 use std::{path::PathBuf, process::exit};
 
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, ArgMatches, Command, ValueHint};
 use log::{error, info};
 
 use crate::r#box::requests::BoxClient;
@@ -20,8 +20,14 @@ pub fn types_command() -> Command<'static> {
         .help("Include profiles"),
       Arg::new("output")
         .long("output")
-        .help("Output file")
-        .default_value("aidbox-generated-types.ts"),
+        .value_hint(ValueHint::FilePath)
+        .required(true)
+        .help("Output file"),
+      Arg::new("target")
+        .long("target")
+        .required(true)
+        .help("Target programming language")
+        .possible_values(&["typescript"]),
       Arg::new("fhir")
         .long("fhir")
         .help("FHIR related type")
@@ -65,17 +71,17 @@ pub async fn generate(
       exit(0);
     },
   };
-
-  match cache.save_intermediate_types(&types) {
-    Ok(..) | Err(..) => {},
-  }
-  match cache.save() {
-    Ok(..) | Err(..) => {},
-  }
+  // match cache.save_intermediate_types(&types) {
+  //   Ok(..) | Err(..) => {},
+  // }
+  // match cache.save() {
+  //   Ok(..) | Err(..) => {},
+  // }
   // write_types(
   //   types,
   //   cache,
   //   sub_matches.is_present("fhir"),
   //   output_file.to_string(),
+  //   sub_matches.value_of("target").unwrap(),
   // );
 }

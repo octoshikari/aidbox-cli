@@ -5,7 +5,7 @@ use console::style;
 use log::error;
 use serde_json::Value;
 
-use crate::{config::default_config_arg, generator::cache::TypeElementSubType};
+use crate::config::default_config_arg;
 
 pub fn sample_commands() -> Command<'static> {
   return Command::new("sample")
