@@ -1,6 +1,6 @@
 [package]
 name = "aidbox"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -25,7 +25,7 @@ futures = "0.3"
 futures-core = "0.3"
 futures-util = "0.3"
 regex = "1.5"
-indicatif = "0.17.0-rc.10"
+indicatif = "0.17.0-rc.11"
 async-recursion = "1"
 dprint-development = "0.9"
 dprint-plugin-typescript = "0.68"
@@ -38,6 +38,8 @@ pulldown-cmark-to-cmark = "10"
 clap_complete = "3"
 human_bytes = { version = "0.3", features = ["bibytes"] }
 console = "0.15"
+base64 = "0.20.0-alpha.1"
+itertools = "0.10.3"
 
 [dev-dependencies]
 proptest = "1.0.0"

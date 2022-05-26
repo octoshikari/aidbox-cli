@@ -1,6 +1,6 @@
 use crate::generator::cache::{create_cache, Cache};
-use crate::generator::reader::generate_types;
-use crate::r#box::requests::BoxConfig;
+use crate::helpers::kebab_to_camel;
+use crate::r#box::requests::BoxClient;
 use log::{error, info};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
@@ -8,8 +8,10 @@ use std::error::Error;
 use std::path::PathBuf;
 use std::process::exit;
 
+use super::reader::read_schema;
+
 pub async fn get_symbol(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   symbol: &String,
 ) -> Result<HashMap<String, Value>, Box<dyn Error>> {
@@ -24,7 +26,7 @@ pub async fn get_symbol(
 }
 
 pub async fn get_value_set(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   symbol: &str,
 ) -> Result<Vec<String>, Box<dyn Error>> {
@@ -41,7 +43,7 @@ pub async fn get_value_set(
 }
 
 pub async fn get_confirms(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   confirms: Vec<&str>,
   resource_name: &str,
@@ -61,11 +63,11 @@ pub async fn get_confirms(
         Some(it) => it.to_owned(),
       };
       if element.get("fhir/polymorphic").is_none() {
-        cache.confirms.insert(
-          confirm.to_string(),
-          serde_json::to_value(&resource_name).unwrap(),
-        );
-        result.insert(resource_name.to_string());
+        let name = get_name(&element);
+        cache
+          .confirms
+          .insert(confirm.to_string(), serde_json::to_value(&name).unwrap());
+        result.insert(name.to_string());
       } else {
         // TODO: Need understand how ot process this
       }
@@ -74,12 +76,46 @@ pub async fn get_confirms(
   Ok(
     result
       .iter()
-      .map(|item| match "Resource" == item {
+      .map(|item| match "Resource" != item.as_str() {
         true => format!("Resource<'{}'>", resource_name),
         _ => item.to_string(),
       })
       .collect(),
   )
+}
+
+pub async fn get_confirms_value(
+  box_instance: &BoxClient,
+  cache: &mut Cache,
+  confirms: Vec<&str>,
+  resource_name: &str,
+) -> Result<Vec<String>, Box<dyn Error>> {
+  let mut result: HashSet<String> = HashSet::new();
+  for confirm in confirms.into_iter() {
+    let exist = cache.confirms.get(confirm);
+    if exist.is_some() {
+      result.insert(exist.unwrap().as_str().unwrap().to_string());
+    } else {
+      let element = match cache.schema.get(confirm) {
+        None => {
+          let definition = box_instance.get_symbol(confirm).await?;
+          cache.schema.insert(confirm.to_string(), definition.clone());
+          definition.to_owned()
+        },
+        Some(it) => it.to_owned(),
+      };
+      if element.get("fhir/polymorphic").is_none() {
+        let name = get_name(&element);
+        cache
+          .confirms
+          .insert(confirm.to_string(), serde_json::to_value(&name).unwrap());
+        result.insert(name.to_string());
+      } else {
+        // TODO: Need understand how ot process this
+      }
+    }
+  }
+  Ok(result.iter().map(|item| item.to_string()).collect())
 }
 
 pub fn wrap_key(source: &str) -> String {
@@ -143,7 +179,7 @@ pub fn get_description_value(definition: &Value) -> Option<String> {
 }
 
 pub async fn init_confirms(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &HashMap<String, Value>,
@@ -167,7 +203,7 @@ pub async fn init_confirms(
 }
 
 pub async fn init_reference_confirms_value(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &Value,
@@ -189,7 +225,7 @@ pub async fn init_reference_confirms_value(
 }
 
 pub async fn init_confirms_value(
-  box_instance: &BoxConfig,
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &Value,
@@ -216,37 +252,14 @@ pub fn normalize_confirms(confirms: &[String], resource_name: &str) -> Option<Ve
   return if confirms.is_empty() || (confirms.len() == 1 && confirms[0].as_str() == resource_name) {
     None
   } else {
-    Some(
-      confirms
-        .iter()
-        .filter(|item| item.as_str() != resource_name)
-        .map(|item| item.to_string())
-        .collect(),
-    )
+    let filtered = confirms
+      .clone()
+      .iter()
+      .filter(|item| item.as_str() != resource_name)
+      .map(|item| item.to_string())
+      .collect();
+    Some(filtered)
   };
-}
-
-pub fn capitalize(s: &str) -> String {
-  let mut c = s.chars();
-  match c.next() {
-    None => String::new(),
-    Some(f) => f.to_uppercase().chain(c).collect(),
-  }
-}
-
-pub fn kebab_to_camel(item: &str) -> String {
-  let v: Vec<_> = item
-    .split('-')
-    .enumerate()
-    .map(|(idx, item)| {
-      if idx == 0 {
-        item.to_string()
-      } else {
-        capitalize(item)
-      }
-    })
-    .collect();
-  v.join("")
 }
 
 pub fn zen_path_to_name(def: &Value) -> String {
@@ -285,7 +298,7 @@ pub fn key_required(key: String, require: bool) -> String {
 
 pub async fn warm_up_definitions(
   config_dir: PathBuf,
-  instance: BoxConfig,
+  instance: BoxClient,
   include_profiles: bool,
   instance_tag: &str,
 ) {
@@ -300,11 +313,8 @@ pub async fn warm_up_definitions(
       it
     },
   };
-  let types = match generate_types(instance, &mut cache, include_profiles).await {
-    Ok(it) => {
-      info!("Intermediate types ready");
-      it
-    },
+  let types = match read_schema(instance, &mut cache, include_profiles).await {
+    Ok(it) => it,
     Err(err) => {
       error!("{:#?}", err);
       exit(0);
@@ -315,45 +325,5 @@ pub async fn warm_up_definitions(
   }
   match cache.save() {
     Ok(..) | Err(..) => {},
-  }
-}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-  use proptest::proptest;
-
-  #[test]
-  fn test_capitalize() {
-    assert_eq!(capitalize("test"), "Test".to_string());
-  }
-
-  #[test]
-  fn test_kebab_to_camel() {
-    assert_eq!(
-      kebab_to_camel("test-case-string"),
-      "testCaseString".to_string()
-    );
-  }
-
-  proptest! {
-      #[test]
-      fn capitalize_idempotent(s in "[a-z]{1,10}") {
-          let result = capitalize(&s);
-
-          assert_eq!(
-              result,
-              capitalize(result.as_str())
-          )
-      }
-      #[test]
-      fn test_key_required(s in "[a-z]{1,10}", require: bool) {
-          let result = key_required(s.clone(), require);
-
-          assert_eq!(
-              result,
-              key_required(s, require)
-          )
-      }
   }
 }

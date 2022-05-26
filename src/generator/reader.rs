@@ -1,18 +1,25 @@
-use crate::generator::cache::{Cache, TypeElement, TypeElementPart, TypeElementSubType};
+use crate::generator::cache::Cache;
+use crate::generator::common::deep_merge_element_schema;
 use crate::generator::helpers::{
   convert_primitive, get_confirms, get_description, get_description_value, get_name, get_symbol,
   get_value_set, init_confirms, init_confirms_value, init_reference_confirms_value,
   is_persistent_any, is_type_and_not_map, normalize_confirms, wrap_key, zen_path_to_name,
 };
-use crate::r#box::requests::BoxConfig;
+use crate::r#box::requests::BoxClient;
+use dprint_core::formatting::print;
 use indicatif::{ProgressBar, ProgressStyle};
+use itertools::Itertools;
 use log::{info, warn};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
+use std::thread;
+use std::time::Duration;
 
-async fn parse_vector(
-  box_instance: &BoxConfig,
+use super::common::{Element, ElementSchema, ElementWrapper};
+
+async fn read_vector(
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   every: &Value,
@@ -20,7 +27,9 @@ async fn parse_vector(
   (
     bool,
     Option<String>,
-    Option<HashMap<String, TypeElementSubType>>,
+    Option<HashMap<String, ElementSchema>>,
+    bool,
+    Option<Vec<String>>,
   ),
   Box<dyn Error>,
 > {
@@ -45,53 +54,63 @@ async fn parse_vector(
       if single_confirm.is_some() {
         if single_confirm.unwrap() == "code" {
           if values.is_empty() {
-            Ok((false, Some("Array<code>".to_string()), None))
+            Ok((true, Some("code".to_string()), None, false, None))
           } else {
-            let target_value: Vec<_> = values.iter().map(|it| format!("\"{}\"", it)).collect();
-            return Ok((
-              false,
-              Some(format!("Array<{}>", target_value.join(" | "))),
+            Ok((
+              true,
               None,
-            ));
+              None,
+              false,
+              Some(values.iter().map(|it| format!("\"{}\"", it)).collect()),
+            ))
           }
         } else if single_confirm.unwrap() == "CodeableConcept" {
           if values.is_empty() {
-            Ok((false, Some("Array<CodeableConcept>".to_string()), None))
+            Ok((true, Some("CodeableConcept".to_string()), None, false, None))
           } else {
-            let target_value: Vec<_> = values.iter().map(|it| format!("\"{}\"", it)).collect();
-            return Ok((
-              false,
-              Some(format!(
-                "Array<CodeableConcept<{}>>",
-                target_value.join(" | ")
-              )),
+            Ok((
+              true,
+              Some("CodeableConcept".to_string()),
               None,
-            ));
+              false,
+              Some(values.iter().map(|it| format!("\"{}\"", it)).collect()),
+            ))
           }
         } else if single_confirm.unwrap() == "Coding" {
           if values.is_empty() {
-            Ok((false, Some("Array<Coding>".to_string()), None))
+            Ok((true, Some("Coding".to_string()), None, false, None))
           } else {
-            let target_value: Vec<_> = values.iter().map(|it| format!("\"{}\"", it)).collect();
-            return Ok((
-              false,
-              Some(format!("Array<Coding<{}>>", target_value.join(" | "))),
+            Ok((
+              true,
+              Some("Coding".to_string()),
               None,
-            ));
+              false,
+              Some(values.iter().map(|it| format!("\"{}\"", it)).collect()),
+            ))
           }
         } else {
-          Ok((false, Some("Array<any>".to_string()), None))
+          println!("{:#?} - {:#?}", every, confirm);
+
+          std::process::exit(0);
+          return Ok((true, None, None, false, Some(values)));
         }
       } else {
-        Ok((false, Some("Array<any>".to_string()), None))
+        println!(
+          "Vector value set no sinble confirm - {} - {:#?}",
+          every, confirm
+        );
+        std::process::exit(0);
+        return Ok((false, Some("Array<any>".to_string()), None, false, None));
       }
     } else {
-      Ok((false, Some("Array<any>".to_string()), None))
+      println!("Vector value set else - {}", every);
+      std::process::exit(0);
+      Ok((true, None, None, false, None))
     }
   } else if every.get("type").is_some() {
     let nested_type = every.get("type").unwrap();
     if nested_type == "zen/string" {
-      let target = match every.get("enum") {
+      let (plain_type, values) = match every.get("enum") {
         Some(it) => {
           let sub_target: Vec<_> = it
             .as_array()
@@ -99,23 +118,24 @@ async fn parse_vector(
             .iter()
             .map(|item| format!("\"{}\"", item.get("value").unwrap().as_str().unwrap()))
             .collect();
+
           if sub_target.is_empty() {
-            "Array<string>".to_string()
+            (Some("string".to_string()), None)
           } else {
-            format!("Array<{}>", sub_target.join(" | "))
+            (None, Some(sub_target))
           }
         },
-        None => "Array<string>".to_string(),
+        None => (Some("string".to_string()), None),
       };
 
-      Ok((false, Some(target), None))
+      Ok((true, plain_type, None, false, values))
     } else if nested_type == "zen/map" {
       if every.get("validation-type").is_some()
         && every.get("validation-type").unwrap().as_str().unwrap() == "open"
       {
-        Ok((false, Some("Array<any>".to_string()), None))
+        Ok((true, None, None, false, None))
       } else if every.get("keys").is_some() {
-        let sub_type = parse_map(
+        let sub_type = read_map(
           box_instance,
           cache,
           resource_name,
@@ -123,12 +143,14 @@ async fn parse_vector(
           every.get("require"),
         )
         .await?;
-        Ok((true, None, Some(sub_type)))
+        Ok((true, None, Some(sub_type), false, None))
       } else {
-        Ok((false, Some("Array<any>".to_string()), None))
+        Ok((true, None, None, false, None))
       }
     } else {
-      Ok((false, Some("Array<any>".to_string()), None))
+      println!("Vector nested unparsed type {}", every);
+      std::process::exit(0);
+      Ok((true, None, None, false, None))
     }
   } else if every
     .get("zen.fhir/reference")
@@ -138,14 +160,11 @@ async fn parse_vector(
     .is_some()
   {
     let refers = init_reference_confirms_value(box_instance, cache, resource_name, every).await?;
-    return Ok((
-      false,
-      Some(match refers.is_empty() {
-        false => format!("Array<Reference<{}>>", refers.join(" | ")),
-        true => "Array<Reference>".to_string(),
-      }),
-      None,
-    ));
+    let (plain_type, values) = match refers.is_empty() {
+      false => (None, Some(refers)),
+      true => (Some("Reference".to_string()), None),
+    };
+    Ok((true, plain_type, None, true, values))
   } else if every.get("confirms").is_some() {
     let confirms = match every.get("confirms") {
       Some(it) => it
@@ -156,25 +175,29 @@ async fn parse_vector(
         .collect(),
       _ => vec![],
     };
-    let res = match get_confirms(box_instance, cache, confirms, resource_name).await {
-      Ok(it) => it.join(" | "),
-      Err(..) => "any".to_string(),
-    };
-    return Ok((false, Some(format!("Array<{}>", res)), None));
+    let (values, plain_type) =
+      match get_confirms(box_instance, cache, confirms, resource_name).await {
+        Ok(mut it) => match it.len() {
+          1 => (None, Some(it.remove(0))),
+          _ => (None, None),
+        },
+        Err(..) => (None, None),
+      };
+    Ok((true, plain_type, None, false, values))
   } else {
-    Ok((false, Some("Array<any>".to_string()), None))
+    Ok((false, None, None, false, None))
   }
 }
 
 #[async_recursion::async_recursion]
-async fn parse_map(
-  box_instance: &BoxConfig,
+async fn read_map(
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   keys: &Value,
   require_keys: Option<&'async_recursion Value>,
-) -> Result<HashMap<String, TypeElementSubType>, Box<dyn Error>> {
-  let mut result_map: HashMap<String, TypeElementSubType> = HashMap::new();
+) -> Result<HashMap<String, ElementSchema>, Box<dyn Error>> {
+  let mut result_map: HashMap<String, ElementSchema> = HashMap::new();
 
   let required: Vec<String> = match require_keys {
     Some(item) => match item.as_array() {
@@ -189,8 +212,7 @@ async fn parse_map(
     _ => vec![],
   };
 
-  for val in keys.as_object().unwrap() {
-    let (key, value) = val;
+  for (key, value) in keys.as_object().unwrap() {
     if value.get("zen.fhir/value-set").is_some() {
       let values = get_value_set(
         box_instance,
@@ -205,115 +227,114 @@ async fn parse_map(
       )
       .await?;
 
-      let plain_type = match values.is_empty() {
+      let (plain_type, values) = match values.is_empty() {
         true => {
           let confirms = init_confirms_value(box_instance, cache, resource_name, value).await?;
           match confirms.is_empty() {
-            false => Some(confirms.join(" | ")),
-            true => Some("any".to_string()),
+            false => (None, Some(confirms)),
+            true => (Some("any".to_string()), None),
           }
         },
-        _ => Some(
-          values
-            .iter()
-            .map(|it| format!("\"{}\"", it))
-            .collect::<Vec<_>>()
-            .join(" | "),
+        false => (
+          None,
+          Some(
+            values
+              .iter()
+              .map(|it| format!("\"{}\"", it))
+              .collect::<Vec<_>>(),
+          ),
         ),
       };
 
       result_map.insert(
         wrap_key(key),
-        TypeElementSubType {
-          description: get_description_value(value),
-          require: required.contains(key),
-          sub_type: None,
+        ElementSchema::new(
+          false,
+          false,
+          required.contains(key),
+          get_description_value(value),
+          None,
           plain_type,
-          extends: None,
-          array: false,
-        },
+          values,
+          None,
+        ),
+      );
+    } else if value.get("type").is_none() && value.get("confirms").is_some() {
+      if value
+        .get("zen.fhir/reference")
+        .map(|it| it.as_object())
+        .map(|it| it.unwrap())
+        .map(|it| it.get("refers"))
+        .is_some()
+      {
+        let mut refers =
+          init_reference_confirms_value(box_instance, cache, resource_name, value).await?;
+        let (plain_type, values): (Option<String>, Option<Vec<String>>) = match refers.is_empty() {
+          true => (Some("any".to_string()), None),
+          false => match refers.len() {
+            1 => (Some(refers.remove(0)), None),
+            _ => (None, Some(refers)),
+          },
+        };
+
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema::new(
+            false,
+            true,
+            required.contains(key),
+            get_description_value(value),
+            None,
+            plain_type,
+            values,
+            None,
+          ),
+        );
+      } else {
+        let mut sub_confirms =
+          init_confirms_value(box_instance, cache, resource_name, value).await?;
+
+        let (plain_type, values): (Option<String>, Option<Vec<String>>) =
+          match sub_confirms.is_empty() {
+            true => (Some("any".to_string()), None),
+            false => match sub_confirms.len() {
+              1 => (Some(sub_confirms.remove(0)), None),
+              _ => (None, Some(sub_confirms)),
+            },
+          };
+
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema::new(
+            false,
+            false,
+            required.contains(key),
+            get_description_value(value),
+            None,
+            plain_type,
+            values,
+            None,
+          ),
+        );
+      }
+    } else if value.get("type").is_none() {
+      result_map.insert(
+        wrap_key(key),
+        ElementSchema::new(
+          false,
+          false,
+          required.contains(key),
+          get_description_value(value),
+          None,
+          Some("any".to_string()),
+          None,
+          None,
+        ),
       );
     } else if value.get("type").is_some() {
-      if value.get("type").unwrap().as_str().unwrap() == "zen/boolean" {
-        result_map.insert(
-          wrap_key(key),
-          TypeElementSubType {
-            description: get_description_value(value),
-            require: required.contains(key),
-            sub_type: None,
-            plain_type: Some("boolean".to_string()),
-            extends: None,
-            array: false,
-          },
-        );
-      } else if value.get("type").unwrap().as_str().unwrap() == "zen/number" {
-        result_map.insert(
-          wrap_key(key),
-          TypeElementSubType {
-            description: value.get("zen/desc").map(|it| it.to_string()),
-            require: required.contains(key),
-            sub_type: None,
-            plain_type: Some("number".to_string()),
-            extends: None,
-            array: false,
-          },
-        );
-      } else if value.get("type").unwrap().as_str().unwrap() == "zen/datetime" {
-        result_map.insert(
-          wrap_key(key),
-          TypeElementSubType {
-            description: get_description_value(value),
-            require: required.contains(key),
-            sub_type: None,
-            plain_type: Some("dateTime".to_string()),
-            extends: None,
-            array: false,
-          },
-        );
-      } else if value.get("type").unwrap().as_str().unwrap() == "zen/integer" {
-        result_map.insert(
-          wrap_key(key),
-          TypeElementSubType {
-            description: get_description_value(value),
-            require: required.contains(key),
-            sub_type: None,
-            plain_type: Some("integer".to_string()),
-            extends: None,
-            array: false,
-          },
-        );
-      } else if value.get("type").unwrap().as_str().unwrap() == "zen/string" {
-        let target = match value.get("enum") {
-          Some(it) => {
-            let sub_target: Vec<_> = it
-              .as_array()
-              .unwrap()
-              .iter()
-              .map(|item| format!("\"{}\"", item.get("value").unwrap().as_str().unwrap()))
-              .collect();
-            if sub_target.is_empty() {
-              "string".to_string()
-            } else {
-              sub_target.join(" | ")
-            }
-          },
-          None => "string".to_string(),
-        };
-        result_map.insert(
-          wrap_key(key),
-          TypeElementSubType {
-            description: get_description_value(value),
-            require: required.contains(key),
-            sub_type: None,
-            plain_type: Some(target),
-            extends: None,
-            array: false,
-          },
-        );
-      } else if value.get("type").is_some()
-        && value.get("type").unwrap().as_str().unwrap() == "zen/vector"
-      {
-        let (array, plain_type, sub_type) = parse_vector(
+      let source_type = value.get("type").unwrap().as_str().unwrap();
+      if source_type == "zen/vector" {
+        let (is_array, plain_type, sub_type, is_reference, values) = read_vector(
           box_instance,
           cache,
           resource_name,
@@ -323,28 +344,32 @@ async fn parse_map(
 
         result_map.insert(
           wrap_key(key),
-          TypeElementSubType {
-            description: get_description_value(value),
-            require: required.contains(key),
+          ElementSchema::new(
+            is_array,
+            is_reference,
+            required.contains(key),
+            get_description_value(value.get("every").unwrap()),
             sub_type,
             plain_type,
-            extends: None,
-            array,
-          },
+            values,
+            None,
+          ),
         );
       } else if value.get("type").unwrap().as_str().unwrap() == "zen/map" {
         if value.get("validation-type").is_some() {
           if value.get("validation-type").unwrap().as_str().unwrap() == "open" {
             result_map.insert(
               wrap_key(key),
-              TypeElementSubType {
-                description: get_description_value(value),
-                require: required.contains(key),
-                sub_type: None,
-                plain_type: Some("any".to_string()),
-                extends: None,
-                array: false,
-              },
+              ElementSchema::new(
+                false,
+                false,
+                required.contains(key),
+                get_description_value(value),
+                None,
+                None,
+                None,
+                None,
+              ),
             );
           }
         } else if value.get("confirms").is_some() {
@@ -361,7 +386,7 @@ async fn parse_map(
             get_confirms(box_instance, cache, sub_confirms_vec, resource_name).await?;
 
           if value.get("keys").is_some() {
-            let sub_type = parse_map(
+            let sub_type = read_map(
               box_instance,
               cache,
               resource_name,
@@ -369,32 +394,37 @@ async fn parse_map(
               value.get("require"),
             )
             .await?;
+
             result_map.insert(
               wrap_key(key),
-              TypeElementSubType {
-                description: get_description_value(value),
-                require: required.contains(key),
-                sub_type: Some(sub_type),
-                plain_type: None,
-                extends: Some(sub_confirms),
-                array: false,
-              },
+              ElementSchema::new(
+                false,
+                false,
+                required.contains(key),
+                get_description_value(value),
+                Some(sub_type),
+                None,
+                None,
+                Some(sub_confirms),
+              ),
             );
           } else {
-            result_map.insert(
-              wrap_key(key),
-              TypeElementSubType {
-                description: get_description_value(value),
-                require: required.contains(key),
-                sub_type: None,
-                plain_type: Some("any".to_string()),
-                extends: None,
-                array: false,
-              },
-            );
+            println!("Map confirms else {}", value);
+            std::process::exit(0);
+            // result_map.insert(
+            //   wrap_key(key),
+            //   TypeElementSubType {
+            //     description: get_description_value(value),
+            //     require: required.contains(key),
+            //     sub_type: None,
+            //     plain_type: Some("any".to_string()),
+            //     extends: None,
+            //     array: false,
+            //   },
+            // );
           }
         } else if value.get("keys").is_some() {
-          let sub_type = parse_map(
+          let sub_type = read_map(
             box_instance,
             cache,
             resource_name,
@@ -402,18 +432,23 @@ async fn parse_map(
             value.get("require"),
           )
           .await?;
+
           result_map.insert(
             wrap_key(key),
-            TypeElementSubType {
-              description: get_description_value(value),
-              require: required.contains(key),
-              sub_type: Some(sub_type),
-              plain_type: None,
-              extends: None,
-              array: false,
-            },
+            ElementSchema::new(
+              false,
+              false,
+              required.contains(key),
+              get_description_value(value),
+              Some(sub_type),
+              None,
+              None,
+              None,
+            ),
           );
         } else if value.get("values").is_some() {
+          println!("Map values {}", value);
+          std::process::exit(0);
           if value.get("values").unwrap().get("type").is_some()
             && value
               .get("values")
@@ -424,21 +459,23 @@ async fn parse_map(
               .unwrap()
               == "zen/any"
           {
-            result_map.insert(
-              wrap_key(key),
-              TypeElementSubType {
-                description: get_description_value(value),
-                require: required.contains(key),
-                sub_type: None,
-                plain_type: Some("Record<string,any>".to_string()),
-                extends: None,
-                array: false,
-              },
-            );
+            // result_map.insert(
+            //   wrap_key(key),
+            //   TypeElementSubType {
+            //     description: get_description_value(value),
+            //     require: required.contains(key),
+            //     sub_type: None,
+            //     plain_type: Some("Record<string,any>".to_string()),
+            //     extends: None,
+            //     array: false,
+            //   },
+            // );
           }
         } else if value.get("values").is_some() {
+          println!("Map va;ues keys {}", value);
+          std::process::exit(0);
           if value.get("values").unwrap().get("keys").is_some() {
-            let sub_type = parse_map(
+            let sub_type = read_map(
               box_instance,
               cache,
               resource_name,
@@ -446,141 +483,180 @@ async fn parse_map(
               value.get("require"),
             )
             .await?;
-            result_map.insert(
-              wrap_key(key),
-              TypeElementSubType {
-                description: get_description_value(value),
-                require: required.contains(key),
-                sub_type: Some(sub_type),
-                plain_type: None,
-                extends: None,
-                array: false,
-              },
-            );
+            // result_map.insert(
+            //   wrap_key(key),
+            //   TypeElementSubType {
+            //     description: get_description_value(value),
+            //     require: required.contains(key),
+            //     sub_type: Some(sub_type),
+            //     plain_type: None,
+            //     extends: None,
+            //     array: false,
+            //   },
+            // );
           }
         } else {
-          result_map.insert(
-            wrap_key(key),
-            TypeElementSubType {
-              description: get_description_value(value),
-              require: required.contains(key),
-              sub_type: None,
-              plain_type: Some("any".to_string()),
-              extends: None,
-              array: false,
-            },
-          );
+          // result_map.insert(
+          //   wrap_key(key),
+          //   TypeElementSubType {
+          //     description: get_description_value(value),
+          //     require: required.contains(key),
+          //     sub_type: None,
+          //     plain_type: Some("any".to_string()),
+          //     extends: None,
+          //     array: false,
+          //   },
+          // );
         }
-      } else {
-        warn!("Unknown value/type - {:#?} {:#?}", key, value)
-      }
-    } else if value.get("type").is_none() && value.get("confirms").is_some() {
-      if value
-        .get("zen.fhir/reference")
-        .map(|it| it.as_object())
-        .map(|it| it.unwrap())
-        .map(|it| it.get("refers"))
-        .is_some()
-      {
-        let refers =
-          init_reference_confirms_value(box_instance, cache, resource_name, value).await?;
+      } else if source_type == "zen/boolean" {
         result_map.insert(
           wrap_key(key),
-          TypeElementSubType {
+          ElementSchema::new(
+            false,
+            false,
+            required.contains(key),
+            get_description_value(value),
+            None,
+            Some("boolean".to_string()),
+            None,
+            None,
+          ),
+        );
+      } else if source_type == "zen/string" {
+        let (plain_type, values) = match value.get("enum") {
+          Some(it) => {
+            let sub_target: Vec<_> = it
+              .as_array()
+              .unwrap()
+              .iter()
+              .map(|item| format!("\"{}\"", item.get("value").unwrap().as_str().unwrap()))
+              .collect();
+            if sub_target.is_empty() {
+              (Some("string".to_string()), None)
+            } else {
+              (None, Some(sub_target))
+            }
+          },
+          None => (Some("string".to_string()), None),
+        };
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
             description: get_description_value(value),
             require: required.contains(key),
             sub_type: None,
-            plain_type: Some(match refers.is_empty() {
-              false => format!("Reference<{}>", refers.join(" | ")),
-              true => "Reference".to_string(),
-            }),
+            plain_type,
             extends: None,
-            array: false,
+            is_array: false,
+            is_reference: false,
+            values,
+          },
+        );
+      } else if source_type == "zen/number" {
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
+            description: get_description_value(value),
+            require: required.contains(key),
+            sub_type: None,
+            plain_type: Some("number".to_string()),
+            extends: None,
+            is_array: false,
+            is_reference: false,
+            values: None,
+          },
+        );
+      } else if source_type == "zen/datetime" {
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
+            description: get_description_value(value),
+            require: required.contains(key),
+            sub_type: None,
+            plain_type: Some("dateTime".to_string()),
+            extends: None,
+            is_array: false,
+            is_reference: false,
+            values: None,
+          },
+        );
+      } else if source_type == "zen/integer" {
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
+            description: get_description_value(value),
+            require: required.contains(key),
+            sub_type: None,
+            plain_type: Some("integer".to_string()),
+            extends: None,
+            is_array: false,
+            is_reference: false,
+            values: None,
           },
         );
       } else {
-        let sub_confirms = init_confirms_value(box_instance, cache, resource_name, value).await?;
+        println!("Type {} -  {} - {}", source_type, key, value);
 
-        result_map.insert(
-          wrap_key(key),
-          TypeElementSubType {
-            description: get_description_value(value),
-            require: required.contains(key),
-            sub_type: None,
-            plain_type: Some(match sub_confirms.is_empty() {
-              false => sub_confirms.join(" | "),
-              true => "any".to_string(),
-            }),
-            extends: None,
-            array: false,
-          },
-        );
+        std::process::exit(0);
       }
-    } else if value.get("type").is_none() {
-      result_map.insert(
-        wrap_key(key),
-        TypeElementSubType {
-          description: get_description_value(value),
-          require: required.contains(key),
-          sub_type: None,
-          plain_type: Some("any".to_string()),
-          extends: None,
-          array: false,
-        },
-      );
     } else {
-      info!("Parse map: unknown case {:#?} {:#?}", key, value)
+      println!("{} - {}", key, value);
+
+      println!("{:#?}", result_map);
+      info!("Parse map: unknown case {:#?} {:#?}", key, value);
+
+      std::process::exit(0);
     }
   }
 
   Ok(result_map)
 }
 
-async fn prepare_keys(
-  box_instance: &BoxConfig,
+async fn read_keys(
+  box_instance: &BoxClient,
   cache: &mut Cache,
   resource_name: &str,
   definition: &HashMap<String, Value>,
-) -> Result<HashMap<String, TypeElementSubType>, Box<dyn Error>> {
-  match definition.get("keys") {
+) -> Result<HashMap<String, ElementSchema>, Box<dyn Error>> {
+  let type_map = match definition.get("keys") {
     Some(keys) => {
-      let type_map = parse_map(
+      read_map(
         box_instance,
         cache,
         resource_name,
         keys,
-        definition.get("require"),
+        definition.get("require").to_owned(),
       )
-      .await?;
-      Ok(type_map)
+      .await?
     },
     None => {
-      let mut type_map: HashMap<String, TypeElementSubType> = HashMap::new();
+      let mut res: HashMap<String, ElementSchema> = HashMap::new();
 
-      type_map.insert(
+      res.insert(
         "[key: string]".to_string(),
-        TypeElementSubType {
-          description: definition
-            .get("zen/desc")
-            .map(|it| it.as_str().unwrap().to_string()),
+        ElementSchema {
+          description: get_description(&definition),
           require: false,
           sub_type: None,
-          plain_type: Some(String::from("any")),
+          plain_type: None,
           extends: None,
-          array: false,
+          is_array: false,
+          is_reference: false,
+          values: None,
         },
       );
-      Ok(type_map)
+      res
     },
-  }
+  };
+  Ok(type_map)
 }
 
-async fn parse_symbol(
-  box_instance: &BoxConfig,
+async fn read_symbol(
+  box_instance: &BoxClient,
   cache: &mut Cache,
   symbol: &String,
   include_profiles: bool,
-) -> Result<Option<TypeElement>, Box<dyn Error>> {
+) -> Result<Option<ElementWrapper>, Box<dyn Error>> {
   let definition = get_symbol(box_instance, cache, symbol).await?;
 
   if definition.get("zen/tags").is_some() {
@@ -606,66 +682,46 @@ async fn parse_symbol(
 
     let confirms = init_confirms(box_instance, cache, &resource_name, &definition).await?;
 
-    if tags.len() == 1 && tags[0] == "zen/schema" {
-      return if !tags.contains(&"zenbox/Resource") {
-        if definition.get("keys").is_none() {
-          warn!("No keys in simple schema {} {:#?}", symbol, definition);
-          Ok(None)
-        } else {
-          Ok(Some(TypeElement {
-            name: resource_name.clone(),
-            element: TypeElementPart {
-              description: get_description(&definition),
-              sub_type: Some(prepare_keys(box_instance, cache, &resource_name, &definition).await?),
-              source: true,
-              profile: false,
-              extends: normalize_confirms(&confirms, &resource_name),
-              plain_type: None,
-            },
-          }))
-        }
-      } else {
-        warn!("Unknown simple schema {} {:#?}", symbol, definition);
-        Ok(None)
-      };
-    } else if tags.contains(&"zenbox/persistent") {
-      return if is_persistent_any(&definition) {
+    return if tags.contains(&"zenbox/persistent") {
+      if is_persistent_any(&definition) {
         let mut sub_type = HashMap::new();
+
         sub_type.insert(
           "[key: string]".to_string(),
-          TypeElementSubType {
-            array: false,
+          ElementSchema {
             require: false,
             extends: None,
-            plain_type: Some("any".to_string()),
+            plain_type: None,
             sub_type: None,
             description: None,
+            is_array: false,
+            is_reference: false,
+            values: None,
           },
         );
-        Ok(Some(TypeElement {
+
+        Ok(Some(ElementWrapper {
           name: resource_name.clone(),
-          element: TypeElementPart {
+          element: Element {
             description: get_description(&definition),
-            sub_type: Some(sub_type),
-            source: true,
             profile: false,
             extends: normalize_confirms(&confirms, &resource_name),
-            plain_type: None,
+            schema: Some(sub_type),
+            plain: None,
           },
         }))
       } else {
-        Ok(Some(TypeElement {
+        Ok(Some(ElementWrapper {
           name: resource_name.clone(),
-          element: TypeElementPart {
+          element: Element {
             description: get_description(&definition),
-            sub_type: Some(prepare_keys(box_instance, cache, &resource_name, &definition).await?),
-            source: true,
             profile: false,
             extends: Some(vec![format!("Resource<'{}'>", resource_name)]),
-            plain_type: None,
+            schema: Some(read_keys(box_instance, cache, &resource_name, &definition).await?),
+            plain: None,
           },
         }))
-      };
+      }
     } else if tags.contains(&"zen.fhir/structure-schema") {
       if is_type_and_not_map(&definition) {
         let primitive_type = convert_primitive(definition["type"].as_str().unwrap());
@@ -676,17 +732,16 @@ async fn parse_symbol(
             serde_json::to_value(&primitive_type).unwrap(),
           );
         }
-        return Ok(Some(TypeElement {
+        Ok(Some(ElementWrapper {
           name: resource_name.clone(),
-          element: TypeElementPart {
+          element: Element {
             description: get_description(&definition),
-            sub_type: None,
-            source: true,
             profile: false,
-            extends: None,
-            plain_type: Some(primitive_type),
+            extends: normalize_confirms(&confirms, &resource_name),
+            schema: None,
+            plain: Some(primitive_type),
           },
-        }));
+        }))
       } else if definition.get("type").is_none() {
         if !definition["zen/name"]
           .as_str()
@@ -697,265 +752,182 @@ async fn parse_symbol(
           .unwrap()
           .contains('-')
         {
-          return if confirms.join(", ") != resource_name {
-            Ok(Some(TypeElement {
+          if confirms.join(", ") != resource_name {
+            Ok(Some(ElementWrapper {
               name: resource_name.clone(),
-              element: TypeElementPart {
+              element: Element {
                 description: get_description(&definition),
-                sub_type: None,
-                source: true,
                 profile: false,
                 extends: normalize_confirms(&confirms, &resource_name),
-                plain_type: None,
+                schema: None,
+                plain: None,
               },
             }))
           } else {
-            Ok(Some(TypeElement {
+            Ok(Some(ElementWrapper {
               name: zen_path_to_name(&definition["zen/name"]),
-              element: TypeElementPart {
+              element: Element {
                 description: get_description(&definition),
-                sub_type: None,
-                source: true,
                 profile: false,
                 extends: normalize_confirms(&confirms, &resource_name),
-                plain_type: None,
+                schema: None,
+                plain: None,
               },
             }))
-          };
+          }
+        } else {
+          Ok(None)
         }
       } else {
-        let mut keys = prepare_keys(box_instance, cache, &resource_name, &definition).await?;
-        return if resource_name == "Resource" {
+        let mut keys = read_keys(box_instance, cache, &resource_name, &definition).await?;
+
+        if resource_name == "Resource" {
           keys.insert(
             "resourceType".to_string(),
-            TypeElementSubType {
+            ElementSchema {
               description: None,
               require: true,
               sub_type: None,
               plain_type: Some("T".to_string()),
               extends: None,
-              array: false,
+              is_array: false,
+              is_reference: false,
+              values: None,
             },
           );
-          Ok(Some(TypeElement {
+
+          Ok(Some(ElementWrapper {
             name: String::from("Resource<T>"),
-            element: TypeElementPart {
+            element: Element {
               description: get_description(&definition),
-              sub_type: Some(keys),
-              source: true,
-              profile: false,
-              extends: None,
-              plain_type: None,
-            },
-          }))
-        } else if resource_name == "DomainResource" {
-          Ok(Some(TypeElement {
-            name: String::from("DomainResource"),
-            element: TypeElementPart {
-              description: get_description(&definition),
-              sub_type: Some(keys),
-              source: true,
-              extends: None,
-              profile: false,
-              plain_type: None,
+              profile: tags.contains(&"zen.fhir/profile-schema"),
+              extends: normalize_confirms(&confirms, &resource_name),
+              schema: Some(keys),
+              plain: None,
             },
           }))
         } else {
-          Ok(Some(TypeElement {
+          Ok(Some(ElementWrapper {
             name: resource_name.clone(),
-            element: TypeElementPart {
+            element: Element {
               description: get_description(&definition),
-              sub_type: Some(keys),
-              source: true,
-              profile: false,
+              profile: tags.contains(&"zen.fhir/profile-schema"),
               extends: normalize_confirms(&confirms, &resource_name),
-              plain_type: None,
+              schema: Some(keys),
+              plain: None,
             },
           }))
-        };
+        }
       }
     } else {
-      return Ok(Some(type_ok(
+      Ok(Some(ElementWrapper::new(
         resource_name.clone(),
-        definition.clone(),
-        confirms,
-        tags.contains(&"zen.fhir/profile-schema"),
-        prepare_keys(box_instance, cache, resource_name.as_str(), &definition).await?,
-      )));
-    }
+        Element {
+          description: get_description(&definition),
+          profile: tags.contains(&"zen.fhir/profile-schema"),
+          extends: normalize_confirms(&confirms, &resource_name),
+          schema: Some(read_keys(box_instance, cache, &resource_name, &definition).await?),
+          plain: None,
+        },
+      )))
+    };
   }
   Ok(None)
 }
 
-fn type_ok(
-  resource_name: String,
-  definition: HashMap<String, Value>,
-  confirms: Vec<String>,
-  profile: bool,
-  keys: HashMap<String, TypeElementSubType>,
-) -> TypeElement {
-  TypeElement {
-    name: resource_name.to_owned(),
-    element: TypeElementPart {
-      description: get_description(&definition),
-      sub_type: Some(keys),
-      source: true,
-      profile,
-      extends: normalize_confirms(&confirms, &resource_name),
-      plain_type: None,
-    },
-  }
+async fn symbol_read(
+  box_instance: &BoxClient,
+  cache: &mut Cache,
+  symbol: &String,
+  include_profiles: bool,
+) -> Result<Option<ElementWrapper>, Box<dyn Error>> {
+  let definition = get_symbol(box_instance, cache, symbol).await?;
+  println!("{:#?}", definition);
+  std::process::exit(0);
+  return Ok(None);
 }
 
-pub async fn generate_types(
-  box_instance: BoxConfig,
+pub async fn read_schema(
+  box_instance: BoxClient,
   cache: &mut Cache,
   include_profiles: bool,
-) -> Result<HashMap<String, TypeElementPart>, Box<dyn Error>> {
-  info!("Start load symbols...");
-  let symbols = match box_instance
+) -> Result<HashMap<String, Element>, Box<dyn Error>> {
+  let symbols = box_instance
     .load_all_symbols(cache.cache_path.clone())
-    .await
-  {
-    Ok(it) => it,
-    Err(err) => return Err(err),
-  };
+    .await?;
+
   let pb = ProgressBar::new(symbols.len() as u64);
   pb.set_style(
-    ProgressStyle::with_template("{spinner:.green} [{elapsed}] [{bar:40.cyan/red}] ({pos}/{len})")
+    ProgressStyle::with_template("{spinner:.blue} [{bar:50.cyan/red}] ({pos}/{len}) {msg}")
       .unwrap()
+      .tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ ")
       .progress_chars("#>-"),
   );
 
-  let mut result: Vec<TypeElement> = Vec::new();
+  let mut result: Vec<ElementWrapper> = Vec::new();
 
   for symbol in symbols.iter() {
-    if let Ok(it) = parse_symbol(&box_instance, cache, symbol, include_profiles).await {
+    if let Ok(it) = symbol_read(&box_instance, cache, symbol, include_profiles).await {
       if it.is_some() {
         result.push(it.unwrap())
       }
     };
     pb.inc(1);
   }
-
-  pb.finish();
-
-  info!(
-    "Symbols {:#?} of {:#?} processed in {:?}",
+  pb.finish_with_message(format!(
+    "{:#?} of {:#?} symbols processed in {:?}",
     result.len(),
     symbols.len(),
     (pb.elapsed().as_secs_f64() * 100f64).floor() / 100f64
-  );
+  ));
 
-  let mut result_types: HashMap<String, TypeElementPart> = HashMap::new();
-
-  result.iter().for_each(
-    |new_element| match result_types.get(new_element.name.as_str()) {
-      Some(old_element) => {
-        if new_element.element.profile {
-          let merged_types = match old_element.sub_type.is_some() {
-            true => match new_element.element.sub_type.is_some() {
-              true => Some(deep_merge_sub_type(
-                old_element.sub_type.clone().unwrap(),
-                new_element.element.sub_type.clone().unwrap(),
-              )),
-              false => old_element.sub_type.clone(),
-            },
-            false => new_element.element.sub_type.clone(),
-          };
-
-          result_types.insert(
-            new_element.name.to_string(),
-            TypeElementPart {
-              description: new_element.element.description.clone(),
-              sub_type: merged_types,
-              source: true,
-              profile: new_element.element.profile,
-              extends: new_element.element.extends.clone(),
-              plain_type: new_element.element.plain_type.clone(),
-            },
-          )
-        } else {
-          let merged_types = match new_element.element.sub_type.is_some() {
-            true => match new_element.element.sub_type.is_some() {
-              true => match old_element.sub_type.is_some() {
-                true => Some(deep_merge_sub_type(
-                  new_element.element.sub_type.clone().unwrap(),
-                  old_element.sub_type.clone().unwrap(),
-                )),
-                false => Some(new_element.element.sub_type.clone().unwrap()),
-              },
-              false => new_element.element.sub_type.clone(),
-            },
-            false => old_element.sub_type.clone(),
-          };
-          result_types.clone().insert(
-            new_element.name.to_string(),
-            TypeElementPart {
-              description: old_element.description.clone(),
-              sub_type: merged_types,
-              source: false,
-              profile: old_element.profile,
-              extends: old_element.extends.clone(),
-              plain_type: old_element.plain_type.clone(),
-            },
-          )
-        };
-      },
-      None => {
-        result_types.insert(new_element.name.to_string(), new_element.element.clone());
-      },
-    },
-  );
+  let mut result_types: HashMap<String, Element> = HashMap::new();
+  //
+  // for new_element in result.iter() {
+  //   match result_types.get(new_element.name.as_str()) {
+  //     Some(old_element) => {
+  //       let merged_types = match new_element.clone().element.schema {
+  //         Some(el) => match old_element.clone().schema {
+  //           Some(old) => Some(deep_merge_element_schema(
+  //             old_element.schema.clone().unwrap(),
+  //             new_element.element.schema.clone().unwrap(),
+  //           )),
+  //           None => new_element.element.schema.clone(),
+  //         },
+  //         None => old_element.schema.clone(),
+  //       };
+  //
+  //       result_types.insert(
+  //         new_element.name.to_string(),
+  //         Element {
+  //           description: old_element.description.clone(),
+  //           profile: old_element.profile,
+  //           extends: match old_element.extends.clone() {
+  //             Some(it) => match new_element.element.extends.clone() {
+  //               Some(ri) => {
+  //                 let extends: Vec<_> = [it.as_slice(), ri.as_slice()]
+  //                   .concat()
+  //                   .iter()
+  //                   .unique()
+  //                   .map(String::to_string)
+  //                   .collect();
+  //
+  //                 Some(extends)
+  //               },
+  //               None => old_element.extends.clone(),
+  //             },
+  //             None => old_element.extends.clone(),
+  //           },
+  //           plain: old_element.plain.clone(),
+  //           schema: merged_types,
+  //         },
+  //       );
+  //     },
+  //     None => {
+  //       result_types.insert(new_element.name.to_string(), new_element.element.clone());
+  //     },
+  //   }
+  // }
 
   Ok(result_types)
-}
-
-fn deep_merge_sub_type(
-  left: HashMap<String, TypeElementSubType>,
-  right: HashMap<String, TypeElementSubType>,
-) -> HashMap<String, TypeElementSubType> {
-  return if left == right {
-    right
-  } else {
-    let mut new_result: HashMap<String, TypeElementSubType> = HashMap::new();
-    for (key, value) in left {
-      match right.get(key.as_str()).is_some() {
-        true => {
-          let element = right.get(key.as_str()).unwrap().to_owned();
-          if value == element {
-            new_result.insert(key, value);
-          } else {
-            let merged_types = match element.sub_type.is_some() {
-              true => match value.sub_type.is_some() {
-                true => Some(deep_merge_sub_type(
-                  value.sub_type.clone().unwrap(),
-                  element.sub_type.clone().unwrap(),
-                )),
-                false => element.sub_type.clone(),
-              },
-              false => element.sub_type.clone(),
-            };
-
-            new_result.insert(
-              key,
-              TypeElementSubType {
-                description: element.description,
-                require: element.require,
-                sub_type: merged_types,
-                plain_type: element.plain_type,
-                extends: element.extends,
-                array: element.array,
-              },
-            );
-          }
-        },
-        false => {
-          //
-          new_result.insert(key, value);
-        },
-      }
-    }
-    new_result
-  };
 }

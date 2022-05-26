@@ -9,17 +9,15 @@ use std::error::Error;
 use std::fs::{self, File};
 use std::path::PathBuf;
 
+use crate::config::BoxInstance;
+
 type RpcModel = HashMap<String, Value>;
 
-pub struct ConnectionConfig {
-  pub base_url: String,
-  pub username: String,
-  pub secret: String,
-}
-
-pub struct BoxConfig {
+pub struct BoxClient {
   instance: Client,
-  config: ConnectionConfig,
+  base_url: String,
+  user: String,
+  password: String,
 }
 #[derive(Deserialize)]
 pub struct RpcResultModel {
@@ -59,11 +57,13 @@ pub struct BoxSearch {
   entry: Vec<SearchEntry>,
 }
 
-impl BoxConfig {
-  pub fn new(config: ConnectionConfig) -> BoxConfig {
-    BoxConfig {
+impl BoxClient {
+  pub fn new(config: BoxInstance) -> BoxClient {
+    BoxClient {
       instance: Client::new(),
-      config,
+      base_url: config.url,
+      user: config.client,
+      password: config.secret,
     }
   }
   pub async fn load_all_symbols(&self, cache_path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
@@ -97,8 +97,8 @@ impl BoxConfig {
 
     let req = self
       .instance
-      .post(format!("{}/rpc", &self.config.base_url))
-      .basic_auth(&self.config.username, Some(&self.config.secret))
+      .post(format!("{}/rpc", &self.base_url))
+      .basic_auth(&self.user, Some(&self.password))
       .body("{:method aidbox.zen/namespaces :params {}}")
       .header(CONTENT_TYPE, "application/edn")
       .header(ACCEPT, "application/json")
@@ -119,8 +119,8 @@ impl BoxConfig {
     {
       let namespace_req = self
         .instance
-        .post(format!("{}/rpc", &self.config.base_url))
-        .basic_auth(&self.config.username, Some(&self.config.secret))
+        .post(format!("{}/rpc", &self.base_url))
+        .basic_auth(&self.user, Some(&self.password))
         .body(format!(
           "{{:method aidbox.zen/symbols :params {{:ns {}}}}}",
           item
@@ -150,7 +150,7 @@ impl BoxConfig {
   pub async fn health_check(&self) -> Result<bool, reqwest::Error> {
     let result = self
       .instance
-      .get(format!("{}/__healthcheck", &self.config.base_url))
+      .get(format!("{}/__healthcheck", &self.base_url))
       .send();
 
     return match result.await {
@@ -162,8 +162,8 @@ impl BoxConfig {
   pub async fn get_user_info(&self) -> Result<Value, String> {
     let result = self
       .instance
-      .get(format!("{}/auth/userinfo", &self.config.base_url))
-      .basic_auth(&self.config.username, Some(&self.config.secret))
+      .get(format!("{}/auth/userinfo", &self.base_url))
+      .basic_auth(&self.user, Some(&self.password))
       .send();
 
     return match result.await {
@@ -181,9 +181,9 @@ impl BoxConfig {
 
     let result = self
       .instance
-      .post(format!("{}/$psql", &self.config.base_url))
+      .post(format!("{}/$psql", &self.base_url))
       .json(&query)
-      .basic_auth(&self.config.username, Some(&self.config.secret))
+      .basic_auth(&self.user, Some(&self.password))
       .send();
 
     return match result.await {
@@ -198,8 +198,8 @@ impl BoxConfig {
   pub async fn get_box_version(&self) -> Result<Value, String> {
     let result = self
       .instance
-      .get(format!("{}/$version", &self.config.base_url))
-      .basic_auth(&self.config.username, Some(&self.config.secret))
+      .get(format!("{}/$version", &self.base_url))
+      .basic_auth(&self.user, Some(&self.password))
       .send();
 
     return match result.await {
@@ -216,8 +216,8 @@ impl BoxConfig {
   pub async fn get_symbol(&self, symbol: &str) -> Result<HashMap<String, Value>, Box<dyn Error>> {
     let req = self
       .instance
-      .post(format!("{}/rpc", &self.config.base_url))
-      .basic_auth(&self.config.username, Some(&self.config.secret))
+      .post(format!("{}/rpc", &self.base_url))
+      .basic_auth(&self.user, Some(&self.password))
       .body(format!(
         "{{:method aidbox.zen/symbol :params {{ :name {}}}}}",
         symbol
@@ -241,10 +241,10 @@ impl BoxConfig {
       .instance
       .get(format!(
         "{}/Concept?valueset={}",
-        &self.config.base_url,
+        &self.base_url,
         str::replace(&definition.get("uri").unwrap().to_string(), "\"", "")
       ))
-      .basic_auth(&self.config.username, Some(&self.config.secret))
+      .basic_auth(&self.user, Some(&self.password))
       .header(ACCEPT, "application/json")
       .send();
 
@@ -265,8 +265,8 @@ impl BoxConfig {
   }
 }
 
-pub async fn create_box(config: ConnectionConfig) -> Result<BoxConfig, reqwest::Error> {
-  let box_instance = BoxConfig::new(config);
+pub async fn create_box(config: BoxInstance) -> Result<BoxClient, reqwest::Error> {
+  let box_instance = BoxClient::new(config);
 
   return match box_instance.health_check().await {
     Ok(..) => {

@@ -49,9 +49,10 @@ dependencies = [
 
 [[package]]
 name = "aidbox"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-recursion",
+ "base64 0.20.0-alpha.1",
  "bollard",
  "chrono",
  "clap",
@@ -69,6 +70,7 @@ dependencies = [
  "human-panic",
  "human_bytes",
  "indicatif",
+ "itertools",
  "log",
  "proptest",
  "pulldown-cmark",
@@ -150,6 +152,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
+name = "base64"
+version = "0.20.0-alpha.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "149ea5dc24cb11513350770afebba32b68e3d2e356f9221351a2a1ee89112a82"
+
+[[package]]
 name = "better_scoped_tls"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -185,7 +193,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b1d4b9e55620571c2200f4be87db2a9a69e2a107fc7d206a6accad58c3536cb"
 dependencies = [
- "base64",
+ "base64 0.13.0",
  "bollard-stubs",
  "bytes",
  "chrono",
@@ -926,9 +934,9 @@ dependencies = [
 
 [[package]]
 name = "indicatif"
-version = "0.17.0-rc.10"
+version = "0.17.0-rc.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "088977cb4de4e09ea0232bd51c844490475ad94344fb0c60784f1fb380059b6d"
+checksum = "4017d0ce94b8e91e29d2c78ed891e57e5ec3dc4371820a9d96abab4af09eb8ad"
 dependencies = [
  "console 0.15.0",
  "number_prefix",
@@ -961,6 +969,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "itertools"
+version = "0.10.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9a9d19fa1e79b6215ff29b9d6880b706147f16e9b1dbb1e4e5947b5b02bc5e3"
+dependencies = [
+ "either",
 ]
 
 [[package]]
@@ -1546,7 +1563,7 @@ version = "0.11.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46a1f7aa4f35e5e8b4160449f51afc758f0ce6454315a9fa7d0d113e958c41eb"
 dependencies = [
- "base64",
+ "base64 0.13.0",
  "bytes",
  "encoding_rs",
  "futures-core",
