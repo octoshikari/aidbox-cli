@@ -1,14 +1,13 @@
 mod writer;
 use std::{path::PathBuf, process::exit};
 
+use crate::generator::helpers::warm_up_definitions;
 use clap::{Arg, ArgMatches, Command, ValueHint};
-use log::{error, info};
+use log::error;
 
 use crate::r#box::requests::BoxClient;
 
 use self::writer::write_types;
-
-use super::{cache::create_cache, reader::read_schema};
 
 pub fn types_command() -> Command<'static> {
   return Command::new("types")
@@ -41,48 +40,26 @@ pub async fn generate(
   config_dir: PathBuf,
   instance_tag: &str,
 ) {
-  let output_file = sub_matches.value_of("output").unwrap();
-
-  let cache_init = create_cache(config_dir, instance_tag);
-  let mut cache = match cache_init {
-    Err(err) => {
-      error!("Cache creating error: {:}", err.to_string());
-      exit(0);
-    },
-    Ok(it) => {
-      info!("Cache ready!");
-      it
-    },
-  };
-
-  let types = match read_schema(
+  let (types, cache) = match warm_up_definitions(
+    config_dir,
     instance,
-    &mut cache,
     sub_matches.is_present("include-profiles"),
+    instance_tag,
   )
   .await
   {
-    Ok(it) => {
-      info!("Schema ready!");
-      it
-    },
+    Ok(it) => it,
     Err(err) => {
       error!("{:#?}", err);
       exit(0);
     },
   };
-  println!("{:#?}", types);
-  match cache.save_intermediate_types(&types) {
-    Ok(..) | Err(..) => {},
-  }
-  match cache.save() {
-    Ok(..) | Err(..) => {},
-  }
+
   // write_types(
   //   types,
   //   cache,
   //   sub_matches.is_present("fhir"),
-  //   output_file.to_string(),
+  //   sub_matches.value_of("output").unwrap().to_string(),
   //   sub_matches.value_of("target").unwrap(),
   // );
 }

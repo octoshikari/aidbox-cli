@@ -62,15 +62,8 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
               cache_folder.push(".cache");
               cache_folder.push(key);
 
-              generate(sub_matches, instance, config.config_dir, key).await
-
-              // match cache_folder.exists() {
-              //   true => generate(sub_matches, instance, config.config_dir, key).await,
-              //   false => {
-              //     error!("Please run '{}'", style("aidbox generator warm-up").cyan());
-              //     std::process::exit(0);
-              //   },
-              // };
+              generate(sub_matches, instance, config.config_dir, key).await;
+              {};
             },
             Err(err) => {
               error!("{:?}", err);
@@ -118,6 +111,7 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
                 key,
               )
               .await
+              .expect("Warn-up error");
             },
             Err(err) => {
               error!("{:?}", err);

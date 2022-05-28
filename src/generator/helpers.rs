@@ -1,4 +1,5 @@
 use crate::generator::cache::{create_cache, Cache};
+use crate::generator::common::Element;
 use crate::helpers::kebab_to_camel;
 use crate::r#box::requests::BoxClient;
 use log::{error, info};
@@ -282,7 +283,7 @@ pub async fn warm_up_definitions(
   instance: BoxClient,
   include_profiles: bool,
   instance_tag: &str,
-) {
+) -> Result<(HashMap<String, Element>, Cache), Box<dyn Error>> {
   let cache_init = create_cache(config_dir, instance_tag);
   let mut cache = match cache_init {
     Err(err) => {
@@ -301,10 +302,11 @@ pub async fn warm_up_definitions(
       exit(0);
     },
   };
-  match cache.save_intermediate_types(&types) {
+  match cache.save_types_schema(&types) {
     Ok(..) | Err(..) => {},
   }
   match cache.save() {
     Ok(..) | Err(..) => {},
   }
+  Ok((types, cache))
 }

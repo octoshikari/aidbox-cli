@@ -3,7 +3,6 @@ use console::{style, Emoji};
 use indicatif::HumanBytes;
 use log::{error, info};
 use serde::de::DeserializeOwned;
-use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
@@ -22,17 +21,17 @@ pub struct Cache {
 }
 
 impl Cache {
-  pub fn save_intermediate_types(&self, types: &HashMap<String, Element>) -> Result<(), Error> {
+  pub fn save_types_schema(&self, types: &HashMap<String, Element>) -> Result<(), Error> {
     return match serde_json::to_writer(
       &File::create(format!(
         "{}/{}.json",
         self.cache_path.to_str().unwrap(),
-        "intermediate_types"
+        "types_shcema"
       ))?,
       &types,
     ) {
       Ok(..) => {
-        info!("Intermediate types has been saved!");
+        info!("Types schema has been saved!");
         Ok(())
       },
       _ => Ok(()),
