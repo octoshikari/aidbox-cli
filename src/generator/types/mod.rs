@@ -63,7 +63,7 @@ pub async fn generate(
   .await
   {
     Ok(it) => {
-      info!("Schema readied");
+      info!("Schema ready!");
       it
     },
     Err(err) => {
@@ -71,12 +71,13 @@ pub async fn generate(
       exit(0);
     },
   };
-  // match cache.save_intermediate_types(&types) {
-  //   Ok(..) | Err(..) => {},
-  // }
-  // match cache.save() {
-  //   Ok(..) | Err(..) => {},
-  // }
+  println!("{:#?}", types);
+  match cache.save_intermediate_types(&types) {
+    Ok(..) | Err(..) => {},
+  }
+  match cache.save() {
+    Ok(..) | Err(..) => {},
+  }
   // write_types(
   //   types,
   //   cache,

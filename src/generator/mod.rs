@@ -1,11 +1,12 @@
 use crate::config::default_config_arg;
+use crate::generator::types::types_command;
 use clap::{Arg, ArgMatches, Command};
 use console::style;
 use log::error;
 
+use self::cache::cache_command;
 use self::helpers::warm_up_definitions;
 use self::types::generate;
-use self::{cache::cache_command, types::types_command};
 use crate::r#box::matches::get_config_or_error;
 use crate::r#box::requests::create_box;
 
@@ -32,7 +33,7 @@ pub fn commands() -> Command<'static> {
                          .help("Include profiles")])
           .about("Pre-load and parse resource definition from box. Please use this command before other commands"))
       .subcommand(Command::new("cache").about("Cache commands").arg_required_else_help(true)
-          .subcommand(Command::new("stats").about("Show cache statistic"))
+          .subcommand(Command::new("stats").about("Show cache statistic").arg(Arg::new("all").long("all").help("Show all instance stats")))
           .subcommand(Command::new("rm").about("Remove specific or all cache item").arg_required_else_help(true)
               .args(vec![Arg::new("all")
                              .long("all")

@@ -1,6 +1,6 @@
 use clap::ArgMatches;
 use console::{style, Emoji};
-use human_bytes::human_bytes;
+use indicatif::HumanBytes;
 use log::{error, info};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -12,32 +12,6 @@ use std::io::Error;
 use std::path::{Path, PathBuf};
 
 use super::common::Element;
-
-#[derive(Serialize, Clone, Eq, PartialEq, Debug)]
-pub struct TypeElementSubType {
-  pub description: Option<String>,
-  pub require: bool,
-  pub sub_type: Option<HashMap<String, TypeElementSubType>>,
-  pub plain_type: Option<String>,
-  pub extends: Option<Vec<String>>,
-  pub array: bool,
-}
-
-#[derive(Serialize, Clone, Eq, PartialEq, Debug)]
-pub struct TypeElementPart {
-  pub description: Option<String>,
-  pub sub_type: Option<HashMap<String, TypeElementSubType>>,
-  pub source: bool,
-  pub profile: bool,
-  pub extends: Option<Vec<String>>,
-  pub plain_type: Option<String>,
-}
-
-#[derive(Serialize)]
-pub struct TypeElement {
-  pub name: String,
-  pub element: TypeElementPart,
-}
 
 pub struct Cache {
   pub primitives: HashMap<String, Value>,
@@ -195,34 +169,68 @@ fn clear_cache(sub_matches: &ArgMatches) {
 fn cache_stats(sub_matches: &ArgMatches) {
   let mut cache_folder = PathBuf::from(sub_matches.value_of("config").unwrap());
   let instance = sub_matches.value_of("instance").unwrap();
+  let all = sub_matches.is_present("all");
 
   cache_folder.push(".cache");
-  cache_folder.push(instance);
 
   if cache_folder.exists() {
-    let mut total_size: f64 = 0.0;
+    let mut total_size = 0;
 
-    println!("{} Items for {}:", Emoji("💾", ""), style(instance).green());
-    println!("-----------------------------------------");
-
-    for file in fs::read_dir(&cache_folder).unwrap() {
-      let file_path = file.unwrap().path();
-      let metadata = fs::metadata(&file_path).expect("Cannot read cache file");
-
-      total_size += metadata.len() as f64;
-
-      println!(
-        "{0: <30} {1} {2: <10}",
-        file_path.to_str().unwrap().split('/').last().unwrap(),
-        Emoji("▶️", "->"),
-        human_bytes(metadata.len() as f64)
-      );
+    if all {
+      for element in fs::read_dir(&cache_folder).unwrap() {
+        let metadata =
+          fs::metadata(&element.as_ref().unwrap().path()).expect("Cannot read element metadata");
+        if metadata.is_dir() {
+          total_size += stat_element(
+            cache_folder.clone(),
+            element.unwrap().file_name().to_str().unwrap(),
+          );
+        }
+      }
+    } else {
+      stat_element(cache_folder.clone(), instance);
     }
-    println!("-----------------------------------------");
-    println!("Total size: {}", human_bytes(total_size))
+
+    println!(
+      "{0: <30} {1} {2}",
+      "Total size: ",
+      Emoji("▶️", "->"),
+      style(HumanBytes(total_size)).bold().blue()
+    );
   } else {
     error!("Cache folder doesn't exist")
   }
+}
+
+fn stat_element(mut cache_folder: PathBuf, instance: &str) -> u64 {
+  let mut total_size = 0;
+
+  cache_folder.push(instance);
+
+  println!("{}:", style(instance).green().italic().bold().underlined());
+
+  for file in fs::read_dir(&cache_folder).unwrap() {
+    let file_path = file.unwrap().path();
+    let metadata = fs::metadata(&file_path).expect("Cannot read cache file");
+
+    total_size += metadata.len();
+
+    println!(
+      "{0: <30} {1} {2: <10}",
+      file_path.to_str().unwrap().split('/').last().unwrap(),
+      Emoji("▶️", "->"),
+      HumanBytes(metadata.len())
+    );
+  }
+  println!(
+    "{0: <30} {1} {2}",
+    "Total item size: ",
+    Emoji("▶️", "->"),
+    style(HumanBytes(total_size)).green().italic()
+  );
+  println!();
+
+  return total_size;
 }
 
 pub fn cache_command(sub_matches: &ArgMatches) {

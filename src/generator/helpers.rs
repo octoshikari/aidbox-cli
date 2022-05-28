@@ -48,31 +48,7 @@ pub async fn get_confirms(
   confirms: Vec<&str>,
   resource_name: &str,
 ) -> Result<Vec<String>, Box<dyn Error>> {
-  let mut result: HashSet<String> = HashSet::new();
-  for confirm in confirms.into_iter() {
-    let exist = cache.confirms.get(confirm);
-    if exist.is_some() {
-      result.insert(exist.unwrap().as_str().unwrap().to_string());
-    } else {
-      let element = match cache.schema.get(confirm) {
-        None => {
-          let definition = box_instance.get_symbol(confirm).await?;
-          cache.schema.insert(confirm.to_string(), definition.clone());
-          definition.to_owned()
-        },
-        Some(it) => it.to_owned(),
-      };
-      if element.get("fhir/polymorphic").is_none() {
-        let name = get_name(&element);
-        cache
-          .confirms
-          .insert(confirm.to_string(), serde_json::to_value(&name).unwrap());
-        result.insert(name.to_string());
-      } else {
-        // TODO: Need understand how ot process this
-      }
-    }
-  }
+  let result = base_confirm_iter(box_instance, cache, confirms).await?;
   Ok(
     result
       .iter()
@@ -84,12 +60,11 @@ pub async fn get_confirms(
   )
 }
 
-pub async fn get_confirms_value(
+async fn base_confirm_iter(
   box_instance: &BoxClient,
   cache: &mut Cache,
   confirms: Vec<&str>,
-  resource_name: &str,
-) -> Result<Vec<String>, Box<dyn Error>> {
+) -> Result<HashSet<String>, Box<dyn Error>> {
   let mut result: HashSet<String> = HashSet::new();
   for confirm in confirms.into_iter() {
     let exist = cache.confirms.get(confirm);
@@ -115,6 +90,15 @@ pub async fn get_confirms_value(
       }
     }
   }
+  return Ok(result);
+}
+
+pub async fn get_confirms_value(
+  box_instance: &BoxClient,
+  cache: &mut Cache,
+  confirms: Vec<&str>,
+) -> Result<Vec<String>, Box<dyn Error>> {
+  let result = base_confirm_iter(box_instance, cache, confirms).await?;
   Ok(result.iter().map(|item| item.to_string()).collect())
 }
 
@@ -227,12 +211,11 @@ pub async fn init_reference_confirms_value(
 pub async fn init_confirms_value(
   box_instance: &BoxClient,
   cache: &mut Cache,
-  resource_name: &str,
   definition: &Value,
 ) -> Result<Vec<String>, Box<dyn Error>> {
   match definition.get("confirms") {
     Some(it) => {
-      get_confirms(
+      get_confirms_value(
         box_instance,
         cache,
         it.as_array()
@@ -240,7 +223,6 @@ pub async fn init_confirms_value(
           .iter()
           .filter_map(|item| item.as_str())
           .collect(),
-        resource_name,
       )
       .await
     },
@@ -253,7 +235,6 @@ pub fn normalize_confirms(confirms: &[String], resource_name: &str) -> Option<Ve
     None
   } else {
     let filtered = confirms
-      .clone()
       .iter()
       .filter(|item| item.as_str() != resource_name)
       .map(|item| item.to_string())

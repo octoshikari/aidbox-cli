@@ -36,90 +36,68 @@ pub struct ElementSchema {
   pub values: Option<Vec<String>>,
 }
 
-impl ElementSchema {
-  pub fn new(
-    is_array: bool,
-    is_reference: bool,
-    require: bool,
-    description: Option<String>,
-    sub_type: Option<HashMap<String, ElementSchema>>,
-    plain_type: Option<String>,
-    values: Option<Vec<String>>,
-    extends: Option<Vec<String>>,
-  ) -> Self {
-    Self {
-      is_array,
-      require,
-      is_reference,
-      description,
-      sub_type,
-      plain_type,
-      values,
-      extends,
-    }
-  }
-}
-
-pub fn deep_merge_element_schema(
-  left: HashMap<String, ElementSchema>,
-  right: HashMap<String, ElementSchema>,
-) -> HashMap<String, ElementSchema> {
-  return if left == right {
-    right
-  } else {
-    let mut new_result: HashMap<String, ElementSchema> = left.clone();
-    for (key, value) in left {
-      match right.get(key.as_str()).is_some() {
-        true => {
-          let element = right.get(key.as_str()).unwrap().to_owned();
-          if value == element {
-            new_result.insert(key, value);
-          } else {
-            let merged_types = match element.sub_type.is_some() {
-              true => match value.sub_type.is_some() {
-                true => Some(deep_merge_element_schema(
-                  value.sub_type.clone().unwrap(),
-                  element.sub_type.clone().unwrap(),
-                )),
+impl Element {
+  pub fn deep_merge_element_schema(
+    self,
+    right: HashMap<String, ElementSchema>,
+  ) -> HashMap<String, ElementSchema> {
+    return if self.schema == right {
+      right
+    } else {
+      let mut new_result: HashMap<String, ElementSchema> = self.schema.clone().unwrap();
+      for (key, value) in new_result {
+        match right.get(key.as_str()).is_some() {
+          true => {
+            let element = right.get(key.as_str()).unwrap().to_owned();
+            if value == element {
+              new_result.insert(key, value);
+            } else {
+              let merged_types = match element.sub_type.is_some() {
+                true => match value.sub_type.is_some() {
+                  true => Some(deep_merge_element_schema(
+                    value.sub_type.clone().unwrap(),
+                    element.sub_type.clone().unwrap(),
+                  )),
+                  false => value.sub_type.clone(),
+                },
                 false => value.sub_type.clone(),
-              },
-              false => value.sub_type.clone(),
-            };
+              };
 
-            new_result.insert(
-              key,
-              ElementSchema {
-                description: element.description,
-                require: element.require,
-                sub_type: merged_types,
-                plain_type: element.plain_type,
-                extends: element.extends,
-                is_array: element.is_array,
-                is_reference: element.is_reference,
-                values: match value.values {
-                  Some(it) => match element.values {
-                    Some(ri) => {
-                      let values = [it.as_slice(), ri.as_slice()]
-                        .concat()
-                        .iter()
-                        .unique()
-                        .map(String::to_string)
-                        .collect();
-                      Some(values)
+              new_result.insert(
+                key,
+                ElementSchema {
+                  description: element.description,
+                  require: element.require,
+                  sub_type: merged_types,
+                  plain_type: element.plain_type,
+                  extends: element.extends,
+                  is_array: element.is_array,
+                  is_reference: element.is_reference,
+                  values: match value.values {
+                    Some(it) => match element.values {
+                      Some(ri) => {
+                        let values = [it.as_slice(), ri.as_slice()]
+                          .concat()
+                          .iter()
+                          .unique()
+                          .map(String::to_string)
+                          .collect();
+                        Some(values)
+                      },
+                      None => element.values,
                     },
                     None => element.values,
                   },
-                  None => element.values,
                 },
-              },
-            );
-          }
-        },
-        false => {
-          new_result.insert(key, value);
-        },
+              );
+            }
+          },
+          false => {
+            new_result.insert(key, value);
+          },
+        }
       }
-    }
-    new_result
-  };
+      new_result
+    };
+  }
 }

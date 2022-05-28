@@ -52,11 +52,11 @@ name = "aidbox"
 version = "0.3.1"
 dependencies = [
  "async-recursion",
- "base64 0.20.0-alpha.1",
  "bollard",
  "chrono",
  "clap",
  "clap_complete",
+ "colorful",
  "console 0.15.0",
  "dialoguer",
  "dirs",
@@ -68,7 +68,6 @@ dependencies = [
  "futures-core",
  "futures-util",
  "human-panic",
- "human_bytes",
  "indicatif",
  "itertools",
  "log",
@@ -152,12 +151,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "904dfeac50f3cdaba28fc6f57fdcddb75f49ed61346676a78c4ffe55877802fd"
 
 [[package]]
-name = "base64"
-version = "0.20.0-alpha.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "149ea5dc24cb11513350770afebba32b68e3d2e356f9221351a2a1ee89112a82"
-
-[[package]]
 name = "better_scoped_tls"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -193,7 +186,7 @@ version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1b1d4b9e55620571c2200f4be87db2a9a69e2a107fc7d206a6accad58c3536cb"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "bollard-stubs",
  "bytes",
  "chrono",
@@ -305,6 +298,12 @@ checksum = "a37c35f1112dad5e6e0b1adaff798507497a18fceeb30cceb3bae7d1427b9213"
 dependencies = [
  "os_str_bytes",
 ]
+
+[[package]]
+name = "colorful"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bca1619ff57dd7a56b58a8e25ef4199f123e78e503fe1653410350a1b98ae65"
 
 [[package]]
 name = "console"
@@ -841,12 +840,6 @@ dependencies = [
  "toml",
  "uuid",
 ]
-
-[[package]]
-name = "human_bytes"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88a0d4dc39ec942e44c1c306aa196da67f2bd6a30dc7b4a475465c13ccf28817"
 
 [[package]]
 name = "humantime"
@@ -1563,7 +1556,7 @@ version = "0.11.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46a1f7aa4f35e5e8b4160449f51afc758f0ce6454315a9fa7d0d113e958c41eb"
 dependencies = [
- "base64 0.13.0",
+ "base64",
  "bytes",
  "encoding_rs",
  "futures-core",
