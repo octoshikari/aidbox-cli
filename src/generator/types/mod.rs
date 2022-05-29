@@ -1,13 +1,13 @@
-mod writer;
+mod typescript;
+
 use std::{path::PathBuf, process::exit};
 
 use crate::generator::helpers::warm_up_definitions;
+use crate::generator::types::typescript::write_typescript_types;
 use clap::{Arg, ArgMatches, Command, ValueHint};
 use log::error;
 
 use crate::r#box::requests::BoxClient;
-
-use self::writer::write_types;
 
 pub fn types_command() -> Command<'static> {
   return Command::new("types")
@@ -55,11 +55,14 @@ pub async fn generate(
     },
   };
 
-  // write_types(
-  //   types,
-  //   cache,
-  //   sub_matches.is_present("fhir"),
-  //   sub_matches.value_of("output").unwrap().to_string(),
-  //   sub_matches.value_of("target").unwrap(),
-  // );
+  let fhir = sub_matches.is_present("fhir");
+  let output = sub_matches.value_of("output").unwrap().to_string();
+
+  match sub_matches.value_of("target").unwrap() {
+    "typescript" => write_typescript_types(types, cache, fhir, output),
+    _ => {
+      error!("Unknown target");
+      std::process::exit(0);
+    },
+  }
 }

@@ -53,7 +53,7 @@ pub async fn get_confirms(
   Ok(
     result
       .iter()
-      .map(|item| match "Resource" != item.as_str() {
+      .map(|item| match "Resource" == item.as_str() {
         true => format!("Resource<'{}'>", resource_name),
         _ => item.to_string(),
       })
@@ -91,7 +91,7 @@ async fn base_confirm_iter(
       }
     }
   }
-  return Ok(result);
+  Ok(result)
 }
 
 pub async fn get_confirms_value(

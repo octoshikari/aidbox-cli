@@ -1,9 +1,8 @@
 use crate::generator::cache::Cache;
 use crate::generator::common::{Element, ElementSchema};
 use crate::generator::helpers::key_required;
-use dprint_plugin_typescript::configuration::*;
-use dprint_plugin_typescript::*;
-use log::error;
+use dprint_plugin_typescript::configuration::{ConfigurationBuilder, QuoteStyle};
+use dprint_plugin_typescript::format_text;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -91,38 +90,40 @@ fn typescript_write_nested_type(
 ) {
   for (key, value) in map {
     if value.description.is_some() {
-      result.push(format!("/* {} */", value.clone().description.unwrap()));
+      result.push(format!("/* {} */", value.description.as_ref().unwrap()));
     }
-    if value.values.is_some() {
-      result.push(format!(
-        "{}: {};",
-        key_required(key, value.require),
-        build_values(value)
-      ));
-    } else if value.plain_type.is_some() {
-      result.push(format!(
-        "{}: {};",
-        key_required(key, value.require),
-        build_plain_type(value)
-      ));
-    } else if value.sub_type.is_none() & value.plain_type.is_none() & value.values.is_none() {
-      result.push(format!(
-        "{}: {};",
-        key_required(key, value.require),
-        build_any(value)
-      ));
-    } else {
-      if (value.sub_type.is_none()) {
-        println!("{:#?}", value);
-      }
-      result.push(format!("{}: {{", key_required(key, value.require)));
-      typescript_write_nested_type(value.sub_type.unwrap(), type_name, result);
-      result.push("};".to_string())
-    }
+    // println!("{}, {:#?}", key, value);
+    // std::process::exit(0);
+    // if value.values.is_some() {
+    //   result.push(format!(
+    //     "{}: {};",
+    //     key_required(key, value.require),
+    //     build_values(value)
+    //   ));
+    // } else if value.plain_type.is_some() {
+    //   result.push(format!(
+    //     "{}: {};",
+    //     key_required(key, value.require),
+    //     build_plain_type(value)
+    //   ));
+    // } else if value.sub_type.is_none() & value.plain_type.is_none() & value.values.is_none() {
+    //   result.push(format!(
+    //     "{}: {};",
+    //     key_required(key, value.require),
+    //     build_any(value)
+    //   ));
+    // } else {
+    //   if value.sub_type.is_none() {
+    //     println!("{:#?}", value);
+    //   }
+    //   result.push(format!("{}: {{", key_required(key, value.require)));
+    //   typescript_write_nested_type(value.sub_type.unwrap(), type_name, result);
+    //   result.push("};".to_string())
+    // }
   }
 }
 
-fn write_typescript_types(
+pub fn write_typescript_types(
   types: HashMap<String, Element>,
   cache: Cache,
   fhir: bool,
@@ -131,9 +132,9 @@ fn write_typescript_types(
   let mut result: Vec<String> = vec![];
 
   if fhir {
-    result.push("export type Reference<T extends string> = {\n  reference: `${T}/${string}`;\n  display?: string;\n};\n".to_string());
+    result.push("export type Reference<T extends string> = {\n  reference: `${T}/${string}`;\n  display?: string;\n identifier: Identifier[];\n};\n".to_string());
   } else {
-    result.push("export type Reference<T = string> = {\n  id: string;\n  resourceType: T;\n  display?: string;\n};\n".to_string());
+    result.push("export type Reference<T = string> = {\n  id: string;\n  resourceType: T;\n  display?: string;\n identifier: Identifier[];\n};\n".to_string());
   }
 
   for (key, value) in types {
@@ -144,8 +145,9 @@ fn write_typescript_types(
     if name.as_str() == "CodeableConcept" || name.as_str() == "Coding" {
       name = format!("{}<T = code>", name);
     }
+
     if value.description.is_some() {
-      result.push(format!("/* {} */", value.description.unwrap()));
+      result.push(format!("/* {} */", value.description.as_ref().unwrap()));
     }
     if value.plain.is_some() {
       result.push(format!(
@@ -154,27 +156,20 @@ fn write_typescript_types(
         value.plain.unwrap()
       ))
     } else if value.schema.is_none() && value.plain.is_none() {
-      if value.extends.clone().is_some()
-        && !value.extends.clone().unwrap().len() == 1
-        && cache
-          .primitives
-          .get(value.extends.clone().unwrap().get(0).unwrap())
-          .is_some()
-      {
+      if value.values.is_some() {
         result.push(format!(
           "export type {} = {};",
           name.clone(),
-          cache
-            .primitives
-            .get(value.extends.clone().unwrap().get(0).unwrap())
-            .unwrap()
+          value.values.unwrap().join(" | ")
         ))
-      } else if value.extends.clone().is_some() {
+      } else if value.extends.is_some() {
         result.push(format!(
           "export type {} = {};",
           name.clone(),
           value.extends.unwrap().join(" & ")
         ))
+      } else {
+        result.push(format!("export type {} = any;", name.clone()))
       }
     } else {
       result.push(format!(
@@ -203,20 +198,4 @@ fn write_typescript_types(
     .expect("Could not parse...");
   fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
     .expect("Expected to write to the file.");
-}
-
-pub fn write_types(
-  types: HashMap<String, Element>,
-  cache: Cache,
-  fhir: bool,
-  output: String,
-  target: &str,
-) {
-  match target {
-    "typescript" => write_typescript_types(types, cache, fhir, output),
-    _ => {
-      error!("Unknown target");
-      std::process::exit(0);
-    },
-  }
 }

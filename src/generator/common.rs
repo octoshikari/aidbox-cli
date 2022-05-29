@@ -22,6 +22,7 @@ pub struct Element {
   pub extends: Option<Vec<String>>,
   pub plain: Option<String>,
   pub schema: Option<HashMap<String, ElementSchema>>,
+  pub values: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]

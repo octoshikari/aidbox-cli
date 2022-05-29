@@ -485,7 +485,7 @@ async fn read_map(
             require: required.contains(key),
             sub_type: None,
             plain_type: Some("boolean".to_string()),
-            extends: Some(value_confirms),
+            extends: None,
             is_array: false,
             is_reference: false,
             values: None,
@@ -625,6 +625,7 @@ async fn symbol_read(
             extends: normalize_confirms(&confirms, &resource_name),
             schema: Some(sub_type),
             plain: None,
+            values: None,
           },
         }))
       } else {
@@ -636,6 +637,7 @@ async fn symbol_read(
             extends: Some(vec![format!("Resource<'{}'>", resource_name)]),
             schema: Some(read_keys(box_instance, cache, &resource_name, &definition).await?),
             plain: None,
+            values: None,
           },
         }))
       }
@@ -657,9 +659,25 @@ async fn symbol_read(
             extends: normalize_confirms(&confirms, &resource_name),
             schema: None,
             plain: Some(primitive_type),
+            values: None,
           },
         }))
       } else if definition.get("type").is_none() {
+        let values = match definition.get("zen.fhir/value-set") {
+          Some(it) => Some(
+            get_value_set(
+              box_instance,
+              cache,
+              it.get("symbol").unwrap().as_str().unwrap(),
+            )
+            .await?
+            .iter()
+            .map(|it| format!("\"{}\"", it))
+            .collect(),
+          ),
+          None => None,
+        };
+
         if !definition["zen/name"]
           .as_str()
           .unwrap()
@@ -678,17 +696,21 @@ async fn symbol_read(
                 extends: normalize_confirms(&confirms, &resource_name),
                 schema: None,
                 plain: None,
+                values,
               },
             }))
           } else {
+            let new_name = zen_path_to_name(&definition["zen/name"]);
+
             Ok(Some(ElementWrapper {
-              name: zen_path_to_name(&definition["zen/name"]),
+              name: new_name.clone(),
               element: Element {
                 description: get_description(&definition),
                 profile: false,
-                extends: normalize_confirms(&confirms, &resource_name),
+                extends: normalize_confirms(&confirms, &new_name),
                 schema: None,
                 plain: None,
+                values,
               },
             }))
           }
@@ -718,9 +740,10 @@ async fn symbol_read(
             element: Element {
               description: get_description(&definition),
               profile: tags.contains(&"zen.fhir/profile-schema"),
-              extends: normalize_confirms(&confirms, &resource_name),
+              extends: None,
               schema: Some(keys),
               plain: None,
+              values: None,
             },
           }))
         } else {
@@ -732,6 +755,7 @@ async fn symbol_read(
               extends: normalize_confirms(&confirms, &resource_name),
               schema: Some(keys),
               plain: None,
+              values: None,
             },
           }))
         }
@@ -745,6 +769,7 @@ async fn symbol_read(
           extends: normalize_confirms(&confirms, &resource_name),
           schema: Some(read_keys(box_instance, cache, &resource_name, &definition).await?),
           plain: None,
+          values: None,
         },
       )))
     };
@@ -806,6 +831,7 @@ pub async fn read_schema(
                   },
                   None => old_element.extends.clone(),
                 },
+                values: old_element.values.clone(),
                 plain: old_element.plain.clone(),
                 schema: merged_types,
               },
