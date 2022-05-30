@@ -22,6 +22,7 @@ async fn read_vector(
 ) -> Result<ElementSchema, Box<dyn Error>> {
   let description = get_description_value(value);
   let every = value.get("every").unwrap();
+  let confirms = init_confirms_value(box_instance, cache, every).await?;
 
   if every.get("zen.fhir/value-set").is_some() {
     let values = get_value_set(
@@ -157,7 +158,6 @@ async fn read_vector(
     })
   } else if every.get("type").is_some() {
     let vector_type = every.get("type").unwrap().as_str().unwrap();
-    let confirms = init_confirms_value(box_instance, cache, every).await?;
 
     if vector_type == "zen/map" {
       return if every.get("validation-type").is_some()
@@ -268,7 +268,7 @@ async fn read_vector(
     }
   } else {
     Ok(ElementSchema {
-      extends: None,
+      extends: Some(confirms),
       is_array: true,
       is_reference: false,
       require: false,
@@ -418,6 +418,58 @@ async fn read_map(
               values: None,
             },
           );
+        } else if value.get("keys").is_some() {
+          let sub_type = read_map(
+            box_instance,
+            cache,
+            resource_name,
+            value.get("keys").unwrap(),
+            value.get("require"),
+          )
+          .await?;
+
+          result_map.insert(
+            wrap_key(key),
+            ElementSchema {
+              extends: Some(value_confirms),
+              is_array: true,
+              is_reference: false,
+              require: false,
+              description: get_description_value(value),
+              sub_type: Some(sub_type),
+              plain_type: None,
+              values: None,
+            },
+          );
+        } else {
+          let mut sub = HashMap::new();
+
+          sub.insert(
+            "__".to_string(),
+            ElementSchema {
+              extends: None,
+              is_array: false,
+              is_reference: false,
+              require: false,
+              description: get_description_value(value),
+              sub_type: None,
+              plain_type: None,
+              values: None,
+            },
+          );
+          result_map.insert(
+            wrap_key(key),
+            ElementSchema {
+              extends: Some(value_confirms),
+              is_array: true,
+              is_reference: false,
+              require: false,
+              description: get_description_value(value),
+              sub_type: Some(sub),
+              plain_type: None,
+              values: None,
+            },
+          );
         }
       } else if source_type == "zen/string" {
         let (plain_type, values) = match value.get("enum") {
@@ -443,7 +495,7 @@ async fn read_map(
             require: required.contains(key),
             sub_type: None,
             plain_type,
-            extends: Some(value_confirms),
+            extends: None,
             is_array: false,
             is_reference: false,
             values,
@@ -736,7 +788,7 @@ async fn symbol_read(
           );
 
           Ok(Some(ElementWrapper {
-            name: String::from("Resource<T>"),
+            name: String::from("Resource<T = string>"),
             element: Element {
               description: get_description(&definition),
               profile: tags.contains(&"zen.fhir/profile-schema"),

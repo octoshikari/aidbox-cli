@@ -104,7 +104,7 @@ pub async fn get_confirms_value(
 }
 
 pub fn wrap_key(source: &str) -> String {
-  return if source.contains('-') {
+  return if source.contains('-') || source == "type" {
     format!("'{}'", source)
   } else {
     source.to_string()
@@ -235,12 +235,16 @@ pub fn normalize_confirms(confirms: &[String], resource_name: &str) -> Option<Ve
   return if confirms.is_empty() || (confirms.len() == 1 && confirms[0].as_str() == resource_name) {
     None
   } else {
-    let filtered = confirms
+    let filtered: Vec<String> = confirms
       .iter()
       .filter(|item| item.as_str() != resource_name)
       .map(|item| item.to_string())
       .collect();
-    Some(filtered)
+
+    match filtered.is_empty() {
+      true => None,
+      false => Some(filtered),
+    }
   };
 }
 

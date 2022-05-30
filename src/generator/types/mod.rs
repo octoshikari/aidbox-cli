@@ -40,7 +40,7 @@ pub async fn generate(
   config_dir: PathBuf,
   instance_tag: &str,
 ) {
-  let (types, cache) = match warm_up_definitions(
+  let (types, _cache) = match warm_up_definitions(
     config_dir,
     instance,
     sub_matches.is_present("include-profiles"),
@@ -59,10 +59,10 @@ pub async fn generate(
   let output = sub_matches.value_of("output").unwrap().to_string();
 
   match sub_matches.value_of("target").unwrap() {
-    "typescript" => write_typescript_types(types, cache, fhir, output),
+    "typescript" => write_typescript_types(types, fhir, output),
     _ => {
       error!("Unknown target");
-      std::process::exit(0);
+      exit(0);
     },
   }
 }
