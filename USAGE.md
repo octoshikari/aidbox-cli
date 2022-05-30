@@ -1,6 +1,6 @@
 Aidbox CLI that provide useful command for interact with your box instance
 
-Version: 0.3.0
+Version: 0.3.1
 
 Arguments:
 
@@ -54,33 +54,33 @@ Arguments:
 
 * `--help`: Print help information
 
-###### Subcommands
-
-###### generate
-
-Generate types from zen schema
-
-Arguments:
-
-* `--help`: Print help information
-
 * `--include-profiles`: Include profiles
 
 * `--output`: Output file
+
+* `--target=<typescript>`: Target programming language
 
 * `--fhir`: FHIR related type
 
 ##### sample
 
-Create sample resource
+Generate sample resources based on loaded schemas
 
 Arguments:
 
 * `--help`: Print help information
 
+* `--config`: Config dir path
+
+* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
+
+* ``Resource name for generation
+
+* `--type=<full,only-required>`: Generate partial or full resource
+
 ##### warm-up
 
-Preload and parse resource definition from box. Please use this command before other commands
+Pre-load and parse resource definition from box. Please use this command before other commands
 
 Arguments:
 
@@ -105,6 +105,8 @@ Show cache statistic
 Arguments:
 
 * `--help`: Print help information
+
+* `--all`: Show all instance stats
 
 ###### rm
 
