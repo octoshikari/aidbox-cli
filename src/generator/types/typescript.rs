@@ -76,11 +76,7 @@ fn build_values(value: ElementSchema) -> String {
   };
 }
 
-fn typescript_write_nested_type(
-  map: HashMap<String, ElementSchema>,
-  type_name: &str,
-  result: &mut Vec<String>,
-) {
+fn typescript_write_nested_type(map: HashMap<String, ElementSchema>, result: &mut Vec<String>) {
   for (key, value) in map {
     if value.description.is_some() {
       result.push(format!("/* {} */", value.description.as_ref().unwrap()));
@@ -130,14 +126,26 @@ fn typescript_write_nested_type(
         build_plain_type(value)
       ));
     } else {
-      if value.sub_type.is_none() {
-        println!("{:#?}", value);
-      }
       result.push(format!("{}: {{", key_required(key, value.require)));
-      typescript_write_nested_type(value.sub_type.unwrap(), type_name, result);
+      typescript_write_nested_type(value.sub_type.unwrap(), result);
       result.push("};".to_string())
     }
   }
+}
+
+fn write_rpc(name: String, definition: Element, result: &mut Vec<String>) {
+  result.push(format!("export type {} = {{", name));
+  result.push(format!(
+    "method: {};",
+    format_args!("\"{}\"", definition.rpc_method.unwrap())
+  ));
+  result.push("params: {".to_string());
+
+  if definition.schema.is_some() {
+    typescript_write_nested_type(definition.schema.unwrap(), result);
+  }
+  result.push("}".to_string());
+  result.push("}".to_string());
 }
 
 pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, output: String) {
@@ -161,7 +169,10 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
     if value.description.is_some() {
       result.push(format!("/* {} */", value.description.as_ref().unwrap()));
     }
-    if value.plain.is_some() {
+
+    if value.is_rpc {
+      write_rpc(name, value, &mut result);
+    } else if value.plain.is_some() {
       result.push(format!(
         "export type {} = {};",
         name.clone(),
@@ -200,7 +211,7 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
           None => "{ ".to_string(),
         }
       ));
-      typescript_write_nested_type(value.schema.unwrap(), &name, &mut result);
+      typescript_write_nested_type(value.schema.unwrap(), &mut result);
 
       result.push("};\n".to_string());
     }
@@ -216,5 +227,4 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
 
   fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
     .expect("Expected to write to the file.");
-  // fs::write(output, result_types).expect("Expected to write to the file.");
 }

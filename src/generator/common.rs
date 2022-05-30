@@ -17,6 +17,8 @@ impl ElementWrapper {
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
 pub struct Element {
+  pub is_rpc: bool,
+  pub rpc_method: Option<String>,
   pub description: Option<String>,
   pub profile: bool,
   pub extends: Option<Vec<String>>,

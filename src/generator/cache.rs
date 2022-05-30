@@ -26,7 +26,7 @@ impl Cache {
       &File::create(format!(
         "{}/{}.json",
         self.cache_path.to_str().unwrap(),
-        "types_shcema"
+        "types_schema"
       ))?,
       &types,
     ) {
@@ -229,7 +229,7 @@ fn stat_element(mut cache_folder: PathBuf, instance: &str) -> u64 {
   );
   println!();
 
-  return total_size;
+  total_size
 }
 
 pub fn cache_command(sub_matches: &ArgMatches) {

@@ -620,6 +620,117 @@ async fn read_keys(
   Ok(type_map)
 }
 
+async fn read_rpc(
+  box_instance: &BoxClient,
+  cache: &mut Cache,
+  symbol_name: &String,
+  resource_name: &str,
+  definition: &HashMap<String, Value>,
+) -> Result<ElementWrapper, Box<dyn Error>> {
+  let rpc_name = format!("RPC{}", resource_name);
+  if definition.get("params").is_some() {
+    let value = definition.get("params").unwrap();
+    if value.get("validation-type").is_some()
+      && value.get("validation-type").unwrap().as_str().unwrap() == "open"
+    {
+      let mut sub = HashMap::new();
+
+      sub.insert(
+        "__".to_string(),
+        ElementSchema {
+          extends: None,
+          is_array: false,
+          is_reference: false,
+          require: false,
+          description: get_description_value(value),
+          sub_type: None,
+          plain_type: None,
+          values: None,
+        },
+      );
+      Ok(ElementWrapper {
+        name: rpc_name,
+        element: Element {
+          is_rpc: true,
+          rpc_method: Some(symbol_name.to_owned()),
+          description: None,
+          profile: false,
+          extends: None,
+          plain: None,
+          schema: Some(sub),
+          values: None,
+        },
+      })
+    } else if value.get("keys").is_some() {
+      let sub_type = read_map(
+        box_instance,
+        cache,
+        resource_name,
+        value.get("keys").unwrap(),
+        value.get("require"),
+      )
+      .await?;
+
+      Ok(ElementWrapper {
+        name: rpc_name,
+        element: Element {
+          is_rpc: true,
+          rpc_method: Some(symbol_name.to_owned()),
+          description: None,
+          profile: false,
+          extends: None,
+          plain: None,
+          schema: Some(sub_type),
+          values: None,
+        },
+      })
+    } else {
+      let mut sub = HashMap::new();
+
+      sub.insert(
+        "__".to_string(),
+        ElementSchema {
+          extends: None,
+          is_array: false,
+          is_reference: false,
+          require: false,
+          description: get_description_value(value),
+          sub_type: None,
+          plain_type: None,
+          values: None,
+        },
+      );
+      Ok(ElementWrapper {
+        name: rpc_name,
+        element: Element {
+          is_rpc: true,
+          rpc_method: Some(symbol_name.to_owned()),
+          description: None,
+          profile: false,
+          extends: None,
+          plain: None,
+          schema: Some(sub),
+          values: None,
+        },
+      })
+    }
+  } else {
+    Ok(ElementWrapper {
+      name: rpc_name,
+      element: Element {
+        is_rpc: true,
+        rpc_method: Some(symbol_name.to_owned()),
+        description: None,
+        profile: false,
+        extends: None,
+        plain: None,
+        schema: None,
+        values: None,
+      },
+    })
+  }
+}
+
 async fn symbol_read(
   box_instance: &BoxClient,
   cache: &mut Cache,
@@ -639,7 +750,7 @@ async fn symbol_read(
     if tags.contains(&"zen.fhir/profile-schema") && !include_profiles {
       return Ok(None);
     }
-    if tags.contains(&"zen.fhir/search") || tags.contains(&"zenbox/rpc") {
+    if tags.contains(&"zen.fhir/search") {
       return Ok(None);
     }
 
@@ -651,7 +762,11 @@ async fn symbol_read(
 
     let confirms = init_confirms(box_instance, cache, &resource_name, &definition).await?;
 
-    return if tags.contains(&"zenbox/persistent") {
+    return if tags.contains(&"zenbox/rpc") {
+      return Ok(Some(
+        read_rpc(box_instance, cache, symbol, &resource_name, &definition).await?,
+      ));
+    } else if tags.contains(&"zenbox/persistent") {
       if is_persistent_any(&definition) {
         let mut sub_type = HashMap::new();
 
@@ -672,6 +787,8 @@ async fn symbol_read(
         Ok(Some(ElementWrapper {
           name: resource_name.clone(),
           element: Element {
+            is_rpc: false,
+            rpc_method: None,
             description: get_description(&definition),
             profile: false,
             extends: normalize_confirms(&confirms, &resource_name),
@@ -684,6 +801,8 @@ async fn symbol_read(
         Ok(Some(ElementWrapper {
           name: resource_name.clone(),
           element: Element {
+            is_rpc: false,
+            rpc_method: None,
             description: get_description(&definition),
             profile: false,
             extends: Some(vec![format!("Resource<'{}'>", resource_name)]),
@@ -706,6 +825,8 @@ async fn symbol_read(
         Ok(Some(ElementWrapper {
           name: resource_name.clone(),
           element: Element {
+            is_rpc: false,
+            rpc_method: None,
             description: get_description(&definition),
             profile: false,
             extends: normalize_confirms(&confirms, &resource_name),
@@ -743,6 +864,8 @@ async fn symbol_read(
             Ok(Some(ElementWrapper {
               name: resource_name.clone(),
               element: Element {
+                is_rpc: false,
+                rpc_method: None,
                 description: get_description(&definition),
                 profile: false,
                 extends: normalize_confirms(&confirms, &resource_name),
@@ -757,6 +880,8 @@ async fn symbol_read(
             Ok(Some(ElementWrapper {
               name: new_name.clone(),
               element: Element {
+                is_rpc: false,
+                rpc_method: None,
                 description: get_description(&definition),
                 profile: false,
                 extends: normalize_confirms(&confirms, &new_name),
@@ -790,6 +915,8 @@ async fn symbol_read(
           Ok(Some(ElementWrapper {
             name: String::from("Resource<T = string>"),
             element: Element {
+              is_rpc: false,
+              rpc_method: None,
               description: get_description(&definition),
               profile: tags.contains(&"zen.fhir/profile-schema"),
               extends: None,
@@ -802,6 +929,8 @@ async fn symbol_read(
           Ok(Some(ElementWrapper {
             name: resource_name.clone(),
             element: Element {
+              is_rpc: false,
+              rpc_method: None,
               description: get_description(&definition),
               profile: tags.contains(&"zen.fhir/profile-schema"),
               extends: normalize_confirms(&confirms, &resource_name),
@@ -816,6 +945,8 @@ async fn symbol_read(
       Ok(Some(ElementWrapper::new(
         resource_name.clone(),
         Element {
+          is_rpc: false,
+          rpc_method: None,
           description: get_description(&definition),
           profile: tags.contains(&"zen.fhir/profile-schema"),
           extends: normalize_confirms(&confirms, &resource_name),
@@ -865,6 +996,8 @@ pub async fn read_schema(
             result.insert(
               new_element.name.to_string(),
               Element {
+                is_rpc: new_element.element.is_rpc,
+                rpc_method: new_element.element.rpc_method,
                 description: new_element.element.description.clone(),
                 profile: new_element.element.profile,
                 extends: match old_element.extends.clone() {

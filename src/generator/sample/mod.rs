@@ -77,7 +77,7 @@ pub async fn sample_match(sub_matches: &ArgMatches, mut cache_folder: PathBuf) {
 
 fn generate_sample(
   schema: &Value,
-  is_full: bool,
+  _is_full: bool,
   mut result: HashMap<String, Value>,
 ) -> HashMap<String, Value> {
   for (key, value) in schema.as_object().unwrap().iter() {
@@ -89,5 +89,5 @@ fn generate_sample(
     }
   }
 
-  return result;
+  result
 }
