@@ -42,37 +42,26 @@ fn build_plain_type(value: ElementSchema) -> String {
 }
 
 fn build_values(value: ElementSchema) -> String {
-  if value.extends.is_some() {
-    println!("In values {:#?}", value);
-  }
-  let values = value.values.unwrap();
+  let values = value
+    .values
+    .unwrap()
+    .iter()
+    .map(|it| format!("\"{}\"", it))
+    .collect::<Vec<_>>()
+    .join(" | ");
   let is_reference = value.is_reference;
   let is_array = value.is_array;
 
   return if is_array {
     if is_reference {
-      format!(
-        "Array<Reference<{}>>",
-        values
-          .iter()
-          .map(|it| format!("'{}'", it))
-          .collect::<Vec<_>>()
-          .join(" | ")
-      )
+      format!("Array<Reference<{}>>", values)
     } else {
-      format!("Array<{}>", values.join(" | "))
+      format!("Array<{}>", values)
     }
   } else if is_reference {
-    format!(
-      "Reference<{}>",
-      values
-        .iter()
-        .map(|it| format!("'{}'", it))
-        .collect::<Vec<_>>()
-        .join(" | ")
-    )
+    format!("Reference<{}>", values)
   } else {
-    values.join(" | ")
+    values
   };
 }
 
@@ -183,7 +172,13 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
         result.push(format!(
           "export type {} = {};",
           name.clone(),
-          value.values.unwrap().join(" | ")
+          value
+            .values
+            .unwrap()
+            .iter()
+            .map(|it| format!("\"{}\"", it))
+            .collect::<Vec<_>>()
+            .join(" | ")
         ))
       } else if value.extends.is_some() {
         let target_extends = value.extends.unwrap();

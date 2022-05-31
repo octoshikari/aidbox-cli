@@ -43,7 +43,7 @@ async fn read_vector(
       let single_confirm = confirm.get(0);
       if single_confirm.is_some() {
         if single_confirm.unwrap() == "code" {
-          return if values.is_empty() {
+          if values.is_empty() {
             Ok(ElementSchema {
               extends: None,
               is_array: true,
@@ -63,11 +63,11 @@ async fn read_vector(
               description,
               sub_type: None,
               plain_type: None,
-              values: Some(values.iter().map(|it| format!("\"{}\"", it)).collect()),
+              values: Some(values),
             })
-          };
+          }
         } else if single_confirm.unwrap() == "CodeableConcept" {
-          return if values.is_empty() {
+          if values.is_empty() {
             Ok(ElementSchema {
               extends: None,
               is_array: true,
@@ -87,11 +87,11 @@ async fn read_vector(
               description,
               sub_type: None,
               plain_type: Some("CodeableConcept".to_string()),
-              values: Some(values.iter().map(|it| format!("\"{}\"", it)).collect()),
+              values: Some(values),
             })
-          };
+          }
         } else if single_confirm.unwrap() == "Coding" {
-          return if values.is_empty() {
+          if values.is_empty() {
             Ok(ElementSchema {
               extends: None,
               is_array: true,
@@ -111,9 +111,9 @@ async fn read_vector(
               description,
               sub_type: None,
               plain_type: Some("Coding".to_string()),
-              values: Some(values.iter().map(|it| format!("\"{}\"", it)).collect()),
+              values: Some(values),
             })
-          };
+          }
         } else {
           println!("wtf {:#?} - {:#?}", every, confirm);
           std::process::exit(0);
@@ -242,7 +242,7 @@ async fn read_vector(
             .as_array()
             .unwrap()
             .iter()
-            .map(|item| format!("\"{}\"", item.get("value").unwrap().as_str().unwrap()))
+            .map(|item| item.get("value").unwrap().as_str().unwrap().to_string())
             .collect();
           if sub_target.is_empty() {
             (Some("string".to_string()), None)
@@ -326,15 +326,7 @@ async fn read_map(
             true => (Some("any".to_string()), None),
           }
         },
-        false => (
-          None,
-          Some(
-            values
-              .iter()
-              .map(|it| format!("\"{}\"", it))
-              .collect::<Vec<_>>(),
-          ),
-        ),
+        false => (None, Some(values)),
       };
 
       result_map.insert(
@@ -478,7 +470,7 @@ async fn read_map(
               .as_array()
               .unwrap()
               .iter()
-              .map(|item| format!("\"{}\"", item.get("value").unwrap().as_str().unwrap()))
+              .map(|item| item.get("value").unwrap().as_str().unwrap().to_string())
               .collect();
             if sub_target.is_empty() {
               (Some("string".to_string()), None)
@@ -843,10 +835,7 @@ async fn symbol_read(
               cache,
               it.get("symbol").unwrap().as_str().unwrap(),
             )
-            .await?
-            .iter()
-            .map(|it| format!("\"{}\"", it))
-            .collect(),
+            .await?,
           ),
           None => None,
         };
