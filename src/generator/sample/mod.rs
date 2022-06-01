@@ -102,33 +102,6 @@ fn generate_values(key: &str, value: &Value, result: &mut HashMap<String, Value>
 
     result.insert(key.to_string(), val.to_owned());
   }
-
-  //
-  //   return if is_array {
-  //     if is_reference {
-  //       format!(
-  //         "Array<Reference<{}>>",
-  //         values
-  //             .iter()
-  //             .map(|it| format!("'{}'", it))
-  //             .collect::<Vec<_>>()
-  //             .join(" | ")
-  //       )
-  //     } else {
-  //       format!("Array<{}>", values.join(" | "))
-  //     }
-  //   } else if is_reference {
-  //     format!(
-  //       "Reference<{}>",
-  //       values
-  //           .iter()
-  //           .map(|it| format!("'{}'", it))
-  //           .collect::<Vec<_>>()
-  //           .join(" | ")
-  //     )
-  //   } else {
-  //     values.join(" | ")
-  //   };
 }
 
 fn generate_nested(keys: &Map<String, Value>, is_full: bool, result: &mut HashMap<String, Value>) {
