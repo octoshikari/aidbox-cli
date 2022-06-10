@@ -24,9 +24,9 @@ pub fn types_command() -> Command<'static> {
         .help("Output file"),
       Arg::new("target")
         .long("target")
-        .required(true)
         .help("Target programming language")
-        .possible_values(&["typescript"]),
+        .possible_values(&["typescript"])
+        .default_value("typescript"),
       Arg::new("fhir")
         .long("fhir")
         .help("FHIR related type")

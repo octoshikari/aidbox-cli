@@ -14,6 +14,7 @@ use std::error::Error;
 
 use super::common::{Element, ElementSchema, ElementWrapper};
 
+#[async_recursion::async_recursion]
 async fn read_vector(
   box_instance: &BoxClient,
   cache: &mut Cache,
@@ -114,7 +115,8 @@ async fn read_vector(
               values: Some(values),
             })
           }
-        } else {
+        }
+        else {
           println!("wtf {:#?} - {:#?}", every, confirm);
           std::process::exit(0);
         }
@@ -262,11 +264,24 @@ async fn read_vector(
         plain_type,
         values,
       })
-    } else {
+    } else if vector_type == "zen/vector"{
+      Ok(read_vector(box_instance, cache,resource_name, every).await?)
+    } else if vector_type == "zen/integer"{
+      Ok(ElementSchema {
+        extends: Some(confirms),
+        is_array: true,
+        is_reference: false,
+        require: false,
+        description,
+        sub_type: None,
+        plain_type: Some("integer".to_string()),
+        values: None
+      })
+    }else {
       println!("Vector nested unparsed type {}", every);
       std::process::exit(0);
     }
-  } else {
+  }  else {
     Ok(ElementSchema {
       extends: Some(confirms),
       is_array: true,
@@ -549,9 +564,23 @@ async fn read_map(
             values: None,
           },
         );
+      } else if source_type == "zen/date" {
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
+            description: get_description_value(value),
+            require: required.contains(key),
+            sub_type: None,
+            plain_type: Some("date".to_string()),
+            extends: Some(value_confirms),
+            is_array: false,
+            is_reference: false,
+            values: None,
+          },
+        );
       } else {
         println!("Unknown type {:#?} {:?}, {:#?}", resource_name, key, value);
-        std::process::exit(0);
+        // std::process::exit(0);
       }
     } else {
       result_map.insert(
