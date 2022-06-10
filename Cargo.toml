@@ -1,6 +1,6 @@
 [package]
-name = "aidbox"
-version = "0.3.3"
+name = "aidbox-cli"
+version = "0.3.4"
 edition = "2021"
 authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -41,6 +41,7 @@ itertools = "0.10.3"
 colorful = "0.2.1"
 fake = {version ="2.4", features = ["chrono"]}
 rand = "0.8"
+webbrowser = "0.7.1"
 
 [dev-dependencies]
 proptest = "1.0.0"

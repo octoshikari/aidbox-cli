@@ -102,6 +102,21 @@ pub fn get_user_info(sub_matches: &ArgMatches) {
   }
 }
 
+pub fn open_ui(sub_matches: &ArgMatches) {
+  if let Ok((config, key)) = get_config_or_error(sub_matches) {
+    let instance = config.boxes.get(key).unwrap();
+
+    match &instance.box_info {
+      Some(_) => {
+        if webbrowser::open(instance.url.clone().as_str()).is_ok() {
+          println!("Open {} in default browser...", instance.url.as_str())
+        }
+      },
+      None => eprintln!("User info doesn't exist. Please run --configure"),
+    }
+  }
+}
+
 pub fn get_box_info(sub_matches: &ArgMatches) {
   if let Ok((config, key)) = get_config_or_error(sub_matches) {
     let instance = config.boxes.get(key).unwrap();

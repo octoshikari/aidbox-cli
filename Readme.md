@@ -8,28 +8,28 @@
 ### ZSH
 
 ```shell
-aidbox completion --generate=zsh > /usr/local/share/zsh/site-functions/_aidbox
+aidbox-cli completion --generate=zsh > /usr/local/share/zsh/site-functions/_aidbox
 compinit
 ```
 
 ### FISH
 
 ```shell
-aidbox completion --generate=fish > aidbox.fish
+aidbox-cli completion --generate=fish > aidbox.fish
 . ./aidbox.fish
 ```
 
 ### BASH
 
 ```shell
-aidbox completion --generate=bash > aidbox.completion
+aidbox-cli completion --generate=bash > aidbox.completion
 source ./aidbox.completion
 ```
 
 ### POWERSHELL
 
 ```shell
-aidbox completion --generate=powershell > aidbox.ps1
+aidbox-cli.exe completion --generate=powershell > aidbox.ps1
 ```
 
 Add result file content into your profile `notepad $profile`

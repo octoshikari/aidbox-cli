@@ -8,7 +8,7 @@ const decompress = require("decompress");
 const decompressTargz = require("decompress-targz");
 
 ////////////////////////////////////////////////////////////////////////////////
-const APP_NAME = "aidbox";
+const APP_NAME = "aidbox-cli";
 const REPO = "octoshikari/aidbox-cli";
 const GITHUB_REPO = `https://github.com/${REPO}`;
 ////////////////////////////////////////////////////////////////////////////////
@@ -89,7 +89,7 @@ async function download() {
         console.log(`\n ------------- Something happened: ${error} --------- \n`);
     });
 
-    await rimraf.sync(`${INSTALL_LOCATION}/aidbox`);
+    await rimraf.sync(`${INSTALL_LOCATION}/aidbox-cli`);
 
     console.log(`Installing to: ${INSTALL_LOCATION}`);
     await decompress(release, INSTALL_LOCATION, {

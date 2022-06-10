@@ -18,7 +18,7 @@ use std::{fs, io};
 async fn main() {
   setup_panic!();
 
-  let mut app = Command::new("aidbox")
+  let mut app = Command::new("aidbox-cli")
     .about("Aidbox CLI that provide useful command for interact with your box instance")
     .version(env!("CARGO_PKG_VERSION"))
     .subcommand_required(true)

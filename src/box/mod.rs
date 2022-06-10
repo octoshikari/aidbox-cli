@@ -16,6 +16,9 @@ pub fn commands() -> Command<'static> {
         .subcommand(Command::new("rm").about(
             "Remove box instance config. With --instance arg, specific config key will be removed",
         ))
+        .subcommand(Command::new("open").about(
+          "Open Aidbox UI. With --instance arg, specific config key will be removed",
+        ))
         .subcommand(Command::new("info").about(
             "Show box info based on $version endpoint. With --instance arg, specific config key will be used",
         ))
@@ -36,6 +39,7 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
     ("configure", sub_matches) => matches::configure(sub_matches).await,
     ("rm", sub_matches) => matches::rm_instance_config(sub_matches),
     ("info", sub_matches) => matches::get_box_info(sub_matches),
+    ("open", sub_matches) => matches::open_ui(sub_matches),
     ("current-user", sub_matches) => matches::get_user_info(sub_matches),
     ("execute-sql", sub_matches) => matches::execute_sql(sub_matches).await,
     (name, _) => {

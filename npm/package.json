@@ -1,10 +1,10 @@
 {
   "name": "@octoshikari/aidbox-cli",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "CLI for work with HealthSamurai Aidbox",
   "private": false,
   "bin": {
-    "aidbox": "bin/aidbox"
+    "aidbox-cli": "bin/aidbox-cli"
   },
   "scripts": {
     "install": "node ./lib/postinstall.js"

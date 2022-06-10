@@ -216,7 +216,7 @@ async function getAssetFromGithubApi(opts, assetName, downloadFolder) {
 
 function unzipWindows(zipPath, destinationDir) {
     return new Promise((resolve, reject) => {
-        fs.copyFileSync(zipPath,destinationDir + "/aidbox");
+        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli");
         resolve();
     });
 }
@@ -229,7 +229,7 @@ function sanitizePathForPowershell(path) {
 
 function untar(zipPath, destinationDir) {
     return new Promise((resolve, reject) => {
-        fs.copyFileSync(zipPath,destinationDir + "/aidbox");
+        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli");
         resolve();
     });
 }
@@ -241,7 +241,7 @@ async function unzipAidbox(zipPath, destinationDir) {
         await untar(zipPath, destinationDir);
     }
 
-    const expectedName = path.join(destinationDir, "aidbox");
+    const expectedName = path.join(destinationDir, "aidbox-cli");
     if (await fsExists(expectedName)) {
         return expectedName;
     }
@@ -251,7 +251,7 @@ async function unzipAidbox(zipPath, destinationDir) {
     }
 
     throw new Error(
-        `Expecting aidbox or aidbox.exe unzipped into ${destinationDir}, didn't find one.`
+        `Expecting aidbox-cli or aidbox-cli.exe unzipped into ${destinationDir}, didn't find one.`
     );
 }
 
@@ -266,7 +266,7 @@ module.exports = async (opts) => {
 
     const extension = isWindows ? ".exe" : "";
     const assetName =
-        ["aidbox", opts.version, opts.target].join("-") + extension;
+        ["aidbox-cli", opts.version, opts.target].join("-") + extension;
 
     if (!(await fsExists(tmpDir))) {
         await fsMkdir(tmpDir);
