@@ -87,19 +87,17 @@ jobs:
       - name: Start sccache server
         if: matrix.os != 'windows-latest'
         run: sccache --start-server
-      #- name: ${{ matrix.make.name }}
-      #  run: make ${{ matrix.make.task }}
 
       # - name: Run tests
       #   run: cargo test --verbose
       - name: Build release
         run: cargo build --verbose --release
 
-      # - name: Build m1
-      #   if: matrix.os == 'macos-latest'
-      #   run: |
-      #     rustup target add aarch64-apple-darwin
-      #     cargo build --verbose --release --target=aarch64-apple-darwin
+      - name: Build m1
+        if: matrix.os == 'macos-latest'
+        run: |
+           rustup target add aarch64-apple-darwin
+           cargo build --verbose --release --target=aarch64-apple-darwin
 
       - name: Print sccache stats
         if: matrix.os != 'windows-latest'
@@ -108,18 +106,18 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: sccache --stop-server || true
 
-      - name: Upload unix binary
+      - name: Upload default binary
         uses: actions/upload-artifact@v1
         if: matrix.os != 'windows-latest'
         with:
           name: aidbox-${{ matrix.os }}
           path: target/release/aidbox
-      # - name: Upload  m1 binary
-      #   uses: actions/upload-artifact@v1
-      #   if: matrix.os == 'macos-latest'
-      #   with:
-      #     name: aidbox-m1-${{ matrix.os }}
-      #     path: target/aarch64-apple-darwin/release/aidbox
+      - name: Upload  m1 binary
+        uses: actions/upload-artifact@v1
+        if: matrix.os == 'macos-latest'
+        with:
+          name: aidbox-m1-${{ matrix.os }}
+          path: target/aarch64-apple-darwin/release/aidbox
       - name: Upload windows binary
         uses: actions/upload-artifact@v1
         if: matrix.os == 'windows-latest'
@@ -176,6 +174,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v1
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          # Optionally strip `v` prefix
+          strip_v: false
       - uses: actions/download-artifact@v1
         with:
           name: aidbox-ubuntu-latest
@@ -184,10 +188,10 @@ jobs:
         with:
           name: aidbox-macOS-latest
           path: dist/aidbox-macOS-latest
-      # - uses: actions/download-artifact@v1
-      #   with:
-      #     name: aidbox-m1-macOS-latest
-      #     path: dist/aidbox-m1-macOS-latest
+      - uses: actions/download-artifact@v1
+        with:
+          name: aidbox-m1-macOS-latest
+          path: dist/aidbox-m1-macOS-latest
       - uses: actions/download-artifact@v1
         with:
           name: aidbox-windows-latest
@@ -211,7 +215,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
           asset_path: ./dist/aidbox-ubuntu-latest/aidbox
-          asset_name: aidbox-linux-x86_64
+          asset_name: aidbox-${{steps.tag.outputs.tag}}-linux-x86_64
           asset_content_type: application/x-elf
       - name: Upload macos release asset
         uses: actions/upload-release-asset@v1.0.1
@@ -220,17 +224,17 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
           asset_path: ./dist/aidbox-macOS-latest/aidbox
-          asset_name: aidbox-darwin-x86_64
+          asset_name: aidbox-$${{steps.tag.outputs.tag}}-darwin-x86_64
           asset_content_type: application/x-mach-binary
-      # - name: Upload macos m1 release asset
-      #   uses: actions/upload-release-asset@v1.0.1
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      #   with:
-      #     upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
-      #     asset_path: ./dist/aidbox-m1-macOS-latest/aidbox
-      #     asset_name: aidbox-darwin-m1
-      #     asset_content_type: application/x-mach-binary
+      - name: Upload macos m1 release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+           asset_path: ./dist/aidbox-m1-macOS-latest/aidbox
+           asset_name: aidbox-${{steps.tag.outputs.tag}}-darwin-m1
+           asset_content_type: application/x-mach-binary
       - name: Upload windows release asset
         uses: actions/upload-release-asset@v1.0.1
         env:
@@ -238,7 +242,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
           asset_path: ./dist/aidbox-windows-latest/aidbox.exe
-          asset_name: aidbox-windows-x86_64.exe
+          asset_name: aidbox-${{steps.tag.outputs.tag}}-windows-x86_64.exe
           asset_content_type: application/vnd.microsoft.portable-executable
   notify-release:
     name: Telegram notification
@@ -257,7 +261,7 @@ jobs:
           message: |
             ✅  ${{ github.actor }} created tag ${{github.ref}}:  
 
-            🌐 See changes: https://github.com/${{ github.repository }}/releases/tags/${{github.tag}}
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tags/${{steps.tag.outputs.tag}}
 
       - name: send failure telegram message
         if: ${{ needs.release.result == 'failure' }}
@@ -270,4 +274,4 @@ jobs:
           message: |
             ❌ ${{ github.actor }} created tag ${{github.ref}}:  
 
-            🌐 See changes: https://github.com/${{ github.repository }}/releases/tags/${{github.tag}}
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tags/${{steps.tag.outputs.tag}}
