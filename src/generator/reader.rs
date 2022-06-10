@@ -943,6 +943,20 @@ async fn symbol_read(
               values: None,
             },
           }))
+        } else if resource_name == "DomainResource" {
+          Ok(Some(ElementWrapper {
+            name: String::from("DomainResource"),
+            element: Element {
+              is_rpc: false,
+              rpc_method: None,
+              description: get_description(&definition),
+              profile: tags.contains(&"zen.fhir/profile-schema"),
+              extends: None,
+              schema: Some(keys),
+              plain: None,
+              values: None,
+            },
+          }))
         } else {
           Ok(Some(ElementWrapper {
             name: resource_name.clone(),
@@ -990,9 +1004,9 @@ pub async fn read_schema(
     .await?;
   let pb = ProgressBar::new(symbols.len() as u64);
   pb.set_style(
-    ProgressStyle::with_template("{spinner:.cyan} [{bar:50.cyan/red}] {pos}/{len} {msg}")
+    ProgressStyle::with_template("{spinner:.cyan} [{bar:50.cyan/white}] {pos}/{len} {msg}")
       .unwrap()
-      .progress_chars("✺✺"),
+      .progress_chars("=>-"),
   );
 
   let mut result: HashMap<String, Element> = HashMap::new();
