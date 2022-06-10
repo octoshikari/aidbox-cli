@@ -1,7 +1,9 @@
 {
   "private": true,
   "name": "example",
-  "scripts": {},
+  "scripts": {
+    "start": "ts-node retreive-patient.ts"
+  },
   "devDependencies": {
     "@types/node": "^16.11.38",
     "@typescript-eslint/eslint-plugin": "^5.5.0",
@@ -22,7 +24,8 @@
     "eslint-plugin-react": "^7.27.1",
     "eslint-plugin-react-hooks": "^4.3.0",
     "eslint-plugin-spellcheck": "^0.0.19",
-    "eslint-stats": "^1.0.1"
+    "eslint-stats": "^1.0.1",
+    "nodemon": "^2.0.16"
   },
   "prettier": "./configs/prettier",
   "packageManager": "pnpm@7.1.9"

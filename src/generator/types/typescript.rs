@@ -139,6 +139,7 @@ fn write_rpc(name: String, definition: Element, result: &mut Vec<String>) {
 
 pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, output: String) {
   let mut result: Vec<String> = vec![];
+  let mut resource_map: Vec<String> = vec![];
 
   if fhir {
     result.push("export type Reference<T extends string> = {\n  reference: `${T}/${string}`;\n  display?: string;\n identifier: Identifier[];\n};\n".to_string());
@@ -148,11 +149,16 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
 
   for (key, value) in types {
     let mut name = key;
-    if name.starts_with("Rpc") || name.as_str() == "boolean" || name.as_str() == "string" {
+    if name.as_str() == "boolean" || name.as_str() == "string" {
       continue;
     }
+
     if name.as_str() == "CodeableConcept" || name.as_str() == "Coding" {
       name = format!("{}<T = code>", name);
+    }
+
+    if value.extends.clone().is_some() && value.extends.clone().unwrap().contains(&name) {
+      resource_map.push(name.clone());
     }
 
     if value.description.is_some() {
@@ -211,15 +217,27 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
       result.push("};\n".to_string());
     }
   }
+
+  result.push("export type ResourceTypeMap = {".to_string());
+
+  for resource in resource_map {
+    result.push(format!("{}:{};", resource.clone(), resource))
+  }
+
+  result.push("};\n".to_string());
+
   let result_types = result.join("\n");
   let config = ConfigurationBuilder::new()
     .line_width(120)
     .quote_style(QuoteStyle::PreferSingle)
     .build();
 
-  let formatted_result = format_text(&PathBuf::from(output.clone()), &result_types, &config)
-    .expect("Could not parse...");
+  // let formatted_result = format_text(&PathBuf::from(output.clone()), &result_types, &config)
+  //   .expect("Could not parse...");
 
-  fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
-    .expect("Expected to write to the file.");
+  // fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
+  //   .expect("Expected to write to the file.");
+
+  fs::write(output, result_types)
+      .expect("Expected to write to the file.");
 }

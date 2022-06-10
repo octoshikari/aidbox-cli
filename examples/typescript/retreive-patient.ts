@@ -1,48 +1,35 @@
-import {
-    HumanName,
-    Patient
-} from '../../aidbox-types'
+import { Patient, Organization, Location } from '../../aidbox-types'
+import axios from 'axios';
 
-interface DomainResource {}
-
-interface Resource<T = string> {
-    resourceType: T;
+type ResourceTypeMap = {
+    Patient: Patient;
+    Location: Location;
+    Organization: Organization;
 }
 
-interface MyPatient extends DomainResource, Resource<"Patient"> {
-    name: HumanName
+export type ResourceType = keyof ResourceTypeMap;
+export type Resource<T extends ResourceType | void = void> = T extends ResourceType ? ResourceTypeMap[T] : ResourceTypeMap;
+
+async function getResource<T extends ResourceType>(resourceType: T, resourceId: string): Promise<Resource<T>> {
+    const client = axios.create({
+        baseURL: 'http://localhost:8888',
+        auth: { username: 'root', password: 'secret' },
+    });
+
+    const { data: resource } = await client.request({
+        url: `/${resourceType}/${resourceId}`,
+    });
+
+    return resource;
 }
 
-const patient = {
-    name: 123,
-    resourceType: "Patient" as const
-}
-
-const valid = (patient: Patient) => {
+const usePatient = (patient: Patient) => {
     console.log(patient);
+};
+
+const retrievePatient = async (id: string) => {
+    const patient = await getResource("Patient", id);
+    usePatient(patient);
 }
 
-valid(patient);
-
-
-
-//
-// type ResourceTypeMap = {
-//     Patient: Patient;
-// }
-//
-// export type ResourceType = keyof ResourceTypeMap;
-// export type Resource<T extends ResourceType | void = void> = T extends ResourceType ? ResourceTypeMap[T] : ResourceTypeMap;
-//
-//
-
-
-// export type Reference<T extends ResourceType> = {
-//     id: string;
-//     resourceType: T;
-//     display?: string;
-// };
-
-// export function createReference<T extends ResourceType>(resourceType: T, id: string): Reference<T> {
-//     return { resourceType, id };
-// }
+retrievePatient("gena-razmakhnin");
