@@ -1,8 +1,8 @@
 [package]
 name = "aidbox"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2021"
-authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>"]
+authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
 license = "MIT/Apache-2.0"
 homepage = "https://github.com/octoshikari/aidbox-cli"
 repository = "https://github.com/octoshikari/aidbox-cli"
