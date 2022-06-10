@@ -196,12 +196,12 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
       }
     } else {
       result.push(format!(
-        "export type {} = {}",
+        "export interface {} extends {}",
         name.clone(),
         match value.extends {
           Some(mut it) => {
             it.sort_by_key(|a| a.to_lowercase());
-            format!("{} & {{ ", it.join(" & "))
+            format!("{} {{ ", it.join(" , "))
           },
           None => "{ ".to_string(),
         }
