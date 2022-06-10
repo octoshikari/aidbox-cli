@@ -42,7 +42,7 @@ async fn read_vector(
       let confirm = init_confirms_value(box_instance, cache, every).await?;
 
       let single_confirm = confirm.get(0);
-      if single_confirm.is_some() {
+      if let Some(..) = single_confirm {
         if single_confirm.unwrap() == "code" {
           if values.is_empty() {
             Ok(ElementSchema {
@@ -115,8 +115,7 @@ async fn read_vector(
               values: Some(values),
             })
           }
-        }
-        else {
+        } else {
           println!("wtf {:#?} - {:#?}", every, confirm);
           std::process::exit(0);
         }
@@ -264,9 +263,9 @@ async fn read_vector(
         plain_type,
         values,
       })
-    } else if vector_type == "zen/vector"{
-      Ok(read_vector(box_instance, cache,resource_name, every).await?)
-    } else if vector_type == "zen/integer"{
+    } else if vector_type == "zen/vector" {
+      Ok(read_vector(box_instance, cache, resource_name, every).await?)
+    } else if vector_type == "zen/integer" {
       Ok(ElementSchema {
         extends: Some(confirms),
         is_array: true,
@@ -275,13 +274,13 @@ async fn read_vector(
         description,
         sub_type: None,
         plain_type: Some("integer".to_string()),
-        values: None
+        values: None,
       })
-    }else {
+    } else {
       println!("Vector nested unparsed type {}", every);
       std::process::exit(0);
     }
-  }  else {
+  } else {
     Ok(ElementSchema {
       extends: Some(confirms),
       is_array: true,

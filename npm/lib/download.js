@@ -216,28 +216,8 @@ async function getAssetFromGithubApi(opts, assetName, downloadFolder) {
 
 function unzipWindows(zipPath, destinationDir) {
     return new Promise((resolve, reject) => {
-        zipPath = sanitizePathForPowershell(zipPath);
-        destinationDir = sanitizePathForPowershell(destinationDir);
-        const expandCmd =
-            "powershell -ExecutionPolicy Bypass -Command Expand-Archive " +
-            ["-Path", zipPath, "-DestinationPath", destinationDir, "-Force"].join(
-                " "
-            );
-        child_process.exec(expandCmd, (err, _stdout, stderr) => {
-            if (err) {
-                reject(err);
-                return;
-            }
-
-            if (stderr) {
-                console.log(stderr);
-                reject(new Error(stderr));
-                return;
-            }
-
-            console.log("Expand-Archive completed");
-            resolve();
-        });
+        fs.copyFileSync(zipPath,destinationDir + "/aidbox");
+        resolve();
     });
 }
 
@@ -249,23 +229,8 @@ function sanitizePathForPowershell(path) {
 
 function untar(zipPath, destinationDir) {
     return new Promise((resolve, reject) => {
-        const unzipProc = child_process.spawn(
-            "tar",
-            ["xvf", zipPath, "-C", destinationDir],
-            { stdio: "inherit" }
-        );
-        unzipProc.on("error", (err) => {
-            reject(err);
-        });
-        unzipProc.on("close", (code) => {
-            console.log(`tar xvf exited with ${code}`);
-            if (code !== 0) {
-                reject(new Error(`tar xvf exited with ${code}`));
-                return;
-            }
-
-            resolve();
-        });
+        fs.copyFileSync(zipPath,destinationDir + "/aidbox");
+        resolve();
     });
 }
 

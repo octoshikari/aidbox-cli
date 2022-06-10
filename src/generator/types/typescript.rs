@@ -157,8 +157,14 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
       name = format!("{}<T = code>", name);
     }
 
-    if value.extends.clone().is_some() && value.extends.clone().unwrap().contains(&name) {
-      resource_map.push(name.clone());
+    if let Some(ext) = value.extends.clone() {
+      if !ext.is_empty() {
+        for ex in ext {
+          if ex.starts_with("Resource") {
+            resource_map.push(name.clone());
+          }
+        }
+      }
     }
 
     if value.description.is_some() {
@@ -218,7 +224,7 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
     }
   }
 
-  result.push("export type ResourceTypeMap = {".to_string());
+  result.push("export type EntityList = {".to_string());
 
   for resource in resource_map {
     result.push(format!("{}:{};", resource.clone(), resource))
@@ -226,18 +232,18 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
 
   result.push("};\n".to_string());
 
+  result.push("export type EntityType = keyof EntityList;".to_string());
+  result.push("export type Entity<T extends EntityType | void = void> = T extends EntityType ? EntityList[T] : EntityList;".to_string());
+
   let result_types = result.join("\n");
   let config = ConfigurationBuilder::new()
     .line_width(120)
     .quote_style(QuoteStyle::PreferSingle)
     .build();
 
-  // let formatted_result = format_text(&PathBuf::from(output.clone()), &result_types, &config)
-  //   .expect("Could not parse...");
+  let formatted_result = format_text(&PathBuf::from(output.clone()), &result_types, &config)
+    .expect("Could not parse...");
 
-  // fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
-  //   .expect("Expected to write to the file.");
-
-  fs::write(output, result_types)
-      .expect("Expected to write to the file.");
+  fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
+    .expect("Expected to write to the file.");
 }

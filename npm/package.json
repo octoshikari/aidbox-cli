@@ -1,0 +1,33 @@
+{
+  "name": "@octoshikari/aidbox-cli",
+  "version": "3.0.4",
+  "description": "CLI for work with HealthSamurai Aidbox",
+  "private": false,
+  "bin": {
+    "aidbox": "bin/aidbox"
+  },
+  "scripts": {
+    "install": "node ./lib/postinstall.js"
+  },
+  "main": "lib/index.js",
+  "typings": "lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/octoshikari/aidbox-cli.git"
+  },
+  "author": "Alex Streltsov <funyloony@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/octoshikari/aidbox-cli/issues"
+  },
+  "postinstall": "node ./lib/postinstall.js",
+  "homepage": "https://github.com/octoshikari/aidbox-cli#readme",
+  "dependencies": {
+    "proxy-from-env": "^1.1.0",
+    "rimraf": "^3.0.2",
+    "decompress": "^4.2.1",
+    "decompress-targz": "4.1.1",
+    "request": "^2.88.2",
+    "request-promise": "^4.2.6"
+  }
+}

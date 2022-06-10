@@ -224,7 +224,7 @@ jobs:
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
           asset_path: ./dist/aidbox-macOS-latest/aidbox
-          asset_name: aidbox-$${{steps.tag.outputs.tag}}-darwin-x86_64
+          asset_name: aidbox-${{steps.tag.outputs.tag}}-darwin-x86_64
           asset_content_type: application/x-mach-binary
       - name: Upload macos m1 release asset
         uses: actions/upload-release-asset@v1.0.1

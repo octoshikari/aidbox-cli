@@ -16,7 +16,7 @@ if (forceInstall) {
     console.log("--force, ignoring caches");
 }
 
-const VERSION = "v0.3.1";
+const VERSION = "v0.3.2";
 const BIN_PATH = path.join(__dirname, "../bin");
 
 process.on("unhandledRejection", (reason, promise) => {
@@ -28,12 +28,12 @@ function getTarget() {
 
     switch (os.platform()) {
         case "darwin":
-            return arch == "x64" ? "x86_64-apple-darwin" : "aarch64-apple-darwin";
+            return arch === "x64" ? "darwin-x86_64" : "darwin-m1";
         case "win32":
-            return arch === "x64" ? "x86_64-pc-windows-msvc" : "i686-pc-windows-msvc";
+            return "windows-x86_64"
         case "linux":
             return arch === "x64"
-                ? "x86_64-unknown-linux-musl"
+                ? "linux-x86_64"
                 : arch === "arm"
                     ? "arm-unknown-linux-gnueabihf"
                     : arch === "arm64"
