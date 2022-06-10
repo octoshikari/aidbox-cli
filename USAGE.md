@@ -76,17 +76,9 @@ Arguments:
 
 * ``Resource name for generation
 
-* `--type=<full,only-required>`: Generate partial or full resource
-
-##### warm-up
-
-Pre-load and parse resource definition from box. Please use this command before other commands
-
-Arguments:
-
-* `--help`: Print help information
-
 * `--include-profiles`: Include profiles
+
+* `--type=<full,only-required>`: Generate partial or full resource
 
 ##### cache
 

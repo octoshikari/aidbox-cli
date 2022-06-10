@@ -20,6 +20,10 @@ pub fn sample_commands() -> Command<'static> {
       Arg::new("resource")
         .help("Resource name for generation")
         .required(true),
+      Arg::new("include-profiles")
+        .long("include-profiles")
+        .takes_value(false)
+        .help("Include profiles"),
       Arg::new("type")
         .long("type")
         .required(true)
@@ -46,10 +50,7 @@ pub async fn sample_match(sub_matches: &ArgMatches, mut cache_folder: PathBuf) {
       data
     },
     false => {
-      error!(
-        "Types schema cache doesn't exist. Please run '{}'",
-        style("generator warm-up").cyan()
-      );
+      error!("Types schema cache doesn't exist.");
       std::process::exit(0);
     },
   };

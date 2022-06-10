@@ -21,29 +21,44 @@ mod types;
 
 pub fn commands() -> Command<'static> {
   return Command::new("generator")
-      .about("Generate some useful things")
-      .arg_required_else_help(true)
-      .args(default_config_arg())
-      .subcommand(types_command())
-      .subcommand(sample_commands())
-      .subcommand(Command::new("warm-up")
-          .args(vec![Arg::new("include-profiles")
-                         .long("include-profiles")
-                         .takes_value(false)
-                         .help("Include profiles")])
-          .about("Pre-load and parse resource definition from box. Please use this command before other commands"))
-      .subcommand(Command::new("cache").about("Cache commands").arg_required_else_help(true)
-          .subcommand(Command::new("stats").about("Show cache statistic").arg(Arg::new("all").long("all").help("Show all instance stats")))
-          .subcommand(Command::new("rm").about("Remove specific or all cache item").arg_required_else_help(true)
-              .args(vec![Arg::new("all")
-                             .long("all")
-                             .help("Remove all cache items")
-                             .takes_value(false),
-                         Arg::new("key")
-                             .long("key")
-                             .conflicts_with("all")
-                             .help("Remove specific cache item")
-                             .possible_values(&["confirms", "primitives", "schema", "valuesets", "symbols", "intermediate_types"])])));
+    .about("Generate some useful things")
+    .arg_required_else_help(true)
+    .args(default_config_arg())
+    .subcommand(types_command())
+    .subcommand(sample_commands())
+    .subcommand(
+      Command::new("cache")
+        .about("Cache commands")
+        .arg_required_else_help(true)
+        .subcommand(
+          Command::new("stats")
+            .about("Show cache statistic")
+            .arg(Arg::new("all").long("all").help("Show all instance stats")),
+        )
+        .subcommand(
+          Command::new("rm")
+            .about("Remove specific or all cache item")
+            .arg_required_else_help(true)
+            .args(vec![
+              Arg::new("all")
+                .long("all")
+                .help("Remove all cache items")
+                .takes_value(false),
+              Arg::new("key")
+                .long("key")
+                .conflicts_with("all")
+                .help("Remove specific cache item")
+                .possible_values(&[
+                  "confirms",
+                  "primitives",
+                  "schema",
+                  "valuesets",
+                  "symbols",
+                  "intermediate_types",
+                ]),
+            ]),
+        ),
+    );
 }
 
 pub async fn sub_matches(sub_matches: &ArgMatches) {
@@ -80,23 +95,6 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
     ("cache", sub_matches) => cache_command(sub_matches),
     ("sample", sub_matches) => {
       if let Ok((config, key)) = get_config_or_error(sub_matches) {
-        let mut cache_folder = config.clone().config_dir;
-        cache_folder.push(".cache");
-        cache_folder.push(key);
-
-        match cache_folder.exists() {
-          true => sample_match(sub_matches, cache_folder).await,
-          false => {
-            error!("Please run '{}'", style("aidbox generator warm-up").cyan());
-            std::process::exit(0);
-          },
-        };
-      } else {
-        error!("Please run '{}'", style("box configure").cyan())
-      }
-    },
-    ("warm-up", sub_matches) => {
-      if let Ok((config, key)) = get_config_or_error(sub_matches) {
         let box_config = config.boxes.get(key).unwrap();
 
         let box_check = create_box(box_config.to_owned()).await;
@@ -104,14 +102,20 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
         match box_check {
           Ok(instance) => match instance.get_user_info().await {
             Ok(_) => {
+              let mut cache_folder = config.clone().config_dir;
+              cache_folder.push(".cache");
+              cache_folder.push(key);
+
               warm_up_definitions(
                 config.config_dir,
                 instance,
                 sub_matches.is_present("include-profiles"),
-                key,
+                sub_matches.value_of("instance").unwrap(),
               )
               .await
-              .expect("Warn-up error");
+              .expect("Error in process zen schemas");
+              sample_match(sub_matches, cache_folder).await;
+              {}
             },
             Err(err) => {
               error!("{:?}", err);
