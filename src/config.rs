@@ -80,7 +80,7 @@ impl Config {
 pub fn default_config_arg() -> Vec<Arg<'static>> {
   let path: &'static mut PathBuf = Box::leak(Box::new(dirs::home_dir().unwrap()));
 
-  path.push(".aidbox");
+  path.push(".aidbox-cli");
 
   let config_path: &'static str = Box::leak(Box::new(path.to_str().unwrap()));
 

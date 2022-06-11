@@ -8,8 +8,8 @@ const decompress = require("decompress");
 const decompressTargz = require("decompress-targz");
 
 ////////////////////////////////////////////////////////////////////////////////
-const APP_NAME = "aidbox-cli";
-const REPO = "octoshikari/aidbox-cli";
+const APP_NAME = "aidbox-cli-cli";
+const REPO = "octoshikari/aidbox-cli-cli";
 const GITHUB_REPO = `https://github.com/${REPO}`;
 ////////////////////////////////////////////////////////////////////////////////
 

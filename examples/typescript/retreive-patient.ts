@@ -1,4 +1,4 @@
-import { Patient, Entity, EntityType } from '../../aidbox-types'
+import { Patient, Entity, EntityType } from '../../aidbox-cli-types'
 import axios from 'axios';
 
 async function getResource<T extends EntityType>(resourceType: T, resourceId: string): Promise<Entity<T>> {

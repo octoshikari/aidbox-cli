@@ -121,7 +121,7 @@ async fn check_latest_version_on_dockerhub(sub_matches: &ArgMatches) {
 
   if (last_updated - current_time).num_minutes() > 10 {
     println!(
-      "New image available. You can run 'aidbox docker-image pull --image {} --tag {}'",
+      "New image available. You can run 'aidbox-cli docker-image pull --image {} --tag {}'",
       style(target_image).cyan(),
       style(tag).magenta()
     );

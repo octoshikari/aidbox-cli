@@ -26,7 +26,7 @@ module.exports = {
   ],
   // TODO: lint eslintrc.js as well
   // https://typescript-eslint.io/docs/linting/type-linting#i-get-errors-telling-me-the-file-must-be-included-in-at-least-one-of-the-projects-provided
-  ignorePatterns: [".eslintrc.js", "node_modules", "build", "data", "generated-aidbox-types.ts", "new_gen", "coverage"],
+  ignorePatterns: [".eslintrc.js", "node_modules", "build", "data", "generated-aidbox-cli-types.ts", "new_gen", "coverage"],
   rules: {
     // What we choose to disable
     "@typescript-eslint/ban-ts-comment": "off", // we do not abuse it anyway

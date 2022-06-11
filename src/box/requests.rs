@@ -85,7 +85,7 @@ impl BoxClient {
     }
 
     let excluded_namespaces = RegexSet::new(&[
-      r"^aidbox",
+      r"^aidbox-cli",
       r"^zenbox",
       r"^fhir",
       r"^zen$",
@@ -99,7 +99,7 @@ impl BoxClient {
       .instance
       .post(format!("{}/rpc", &self.base_url))
       .basic_auth(&self.user, Some(&self.password))
-      .body("{:method aidbox.zen/namespaces :params {}}")
+      .body("{:method aidbox-cli.zen/namespaces :params {}}")
       .header(CONTENT_TYPE, "application/edn")
       .header(ACCEPT, "application/json")
       .send();
@@ -122,7 +122,7 @@ impl BoxClient {
         .post(format!("{}/rpc", &self.base_url))
         .basic_auth(&self.user, Some(&self.password))
         .body(format!(
-          "{{:method aidbox.zen/symbols :params {{:ns {}}}}}",
+          "{{:method aidbox-cli.zen/symbols :params {{:ns {}}}}}",
           item
         ))
         .header(CONTENT_TYPE, "application/edn")
@@ -207,7 +207,8 @@ impl BoxClient {
       Err(err) => {
         println!("{:#?}", err);
         Err(
-          "$version operation doesn't exist. Please update you aidbox on newer version".to_string(),
+          "$version operation doesn't exist. Please update you aidbox-cli on newer version"
+            .to_string(),
         )
       },
     };
@@ -219,7 +220,7 @@ impl BoxClient {
       .post(format!("{}/rpc", &self.base_url))
       .basic_auth(&self.user, Some(&self.password))
       .body(format!(
-        "{{:method aidbox.zen/symbol :params {{ :name {}}}}}",
+        "{{:method aidbox-cli.zen/symbol :params {{ :name {}}}}}",
         symbol
       ))
       .header(CONTENT_TYPE, "application/edn")

@@ -20,7 +20,7 @@ const fsMkdir = util.promisify(fs.mkdir);
 
 const isWindows = os.platform() === "win32";
 
-const REPO = "octoshikari/aidbox-cli";
+const REPO = "octoshikari/aidbox-cli-cli";
 
 function isGithubUrl(_url) {
     return url.parse(_url).hostname === "api.github.com";
@@ -181,7 +181,7 @@ async function getAssetFromGithubApi(opts, assetName, downloadFolder) {
 
     const downloadOpts = {
         headers: {
-            "user-agent": "aidbox",
+            "user-agent": "aidbox-cli",
         },
     };
 
@@ -216,7 +216,7 @@ async function getAssetFromGithubApi(opts, assetName, downloadFolder) {
 
 function unzipWindows(zipPath, destinationDir) {
     return new Promise((resolve, reject) => {
-        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli");
+        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli-cli");
         resolve();
     });
 }
@@ -229,7 +229,7 @@ function sanitizePathForPowershell(path) {
 
 function untar(zipPath, destinationDir) {
     return new Promise((resolve, reject) => {
-        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli");
+        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli-cli");
         resolve();
     });
 }
@@ -241,7 +241,7 @@ async function unzipAidbox(zipPath, destinationDir) {
         await untar(zipPath, destinationDir);
     }
 
-    const expectedName = path.join(destinationDir, "aidbox-cli");
+    const expectedName = path.join(destinationDir, "aidbox-cli-cli");
     if (await fsExists(expectedName)) {
         return expectedName;
     }
@@ -266,7 +266,7 @@ module.exports = async (opts) => {
 
     const extension = isWindows ? ".exe" : "";
     const assetName =
-        ["aidbox-cli", opts.version, opts.target].join("-") + extension;
+        ["aidbox-cli-cli", opts.version, opts.target].join("-") + extension;
 
     if (!(await fsExists(tmpDir))) {
         await fsMkdir(tmpDir);
