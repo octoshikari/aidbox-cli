@@ -8,21 +8,21 @@
 ### ZSH
 
 ```shell
-aidbox-cli-cli completion --generate=zsh > /usr/local/share/zsh/site-functions/_aidbox-cli
+aidbox-cli completion --generate=zsh > /usr/local/share/zsh/site-functions/_aidbox-cli
 compinit
 ```
 
 ### FISH
 
 ```shell
-aidbox-cli-cli completion --generate=fish > aidbox-cli.fish
+aidbox-cli completion --generate=fish > aidbox-cli.fish
 . ./aidbox-cli.fish
 ```
 
 ### BASH
 
 ```shell
-aidbox-cli-cli completion --generate=bash > aidbox-cli.completion
+aidbox-cli completion --generate=bash > aidbox-cli.completion
 source ./aidbox-cli.completion
 ```
 
