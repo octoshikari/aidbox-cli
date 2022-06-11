@@ -10,28 +10,26 @@ use log::error;
 use crate::r#box::requests::BoxClient;
 
 pub fn types_command() -> Command<'static> {
-  return Command::new("types")
-    .about("Work with types generation")
-    .args(vec![
-      Arg::new("include-profiles")
-        .long("include-profiles")
-        .takes_value(false)
-        .help("Include profiles"),
-      Arg::new("output")
-        .long("output")
-        .value_hint(ValueHint::FilePath)
-        .required(true)
-        .help("Output file"),
-      Arg::new("target")
-        .long("target")
-        .help("Target programming language")
-        .possible_values(&["typescript"])
-        .default_value("typescript"),
-      Arg::new("fhir")
-        .long("fhir")
-        .help("FHIR related type")
-        .takes_value(false),
-    ]);
+  return Command::new("types").about("Types generating").args(vec![
+    Arg::new("include-profiles")
+      .long("include-profiles")
+      .takes_value(false)
+      .help("Include profiles"),
+    Arg::new("output")
+      .long("output")
+      .value_hint(ValueHint::FilePath)
+      .required(true)
+      .help("Output file"),
+    Arg::new("target")
+      .long("target")
+      .help("Target programming language")
+      .possible_values(&["typescript"])
+      .default_value("typescript"),
+    Arg::new("fhir")
+      .long("fhir")
+      .help("FHIR related type")
+      .takes_value(false),
+  ]);
 }
 
 pub async fn generate(
@@ -60,8 +58,8 @@ pub async fn generate(
 
   match sub_matches.value_of("target").unwrap() {
     "typescript" => write_typescript_types(types, fhir, output),
-    _ => {
-      error!("Unknown target");
+    unknown => {
+      error!("Unknown target {}", unknown);
       exit(0);
     },
   }

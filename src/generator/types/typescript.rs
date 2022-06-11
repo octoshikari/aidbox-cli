@@ -2,6 +2,7 @@ use crate::generator::common::{Element, ElementSchema};
 use crate::generator::helpers::key_required;
 use dprint_plugin_typescript::configuration::{ConfigurationBuilder, QuoteStyle};
 use dprint_plugin_typescript::format_text;
+use log::error;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -227,7 +228,7 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
   result.push("export type EntityList = {".to_string());
 
   for resource in resource_map {
-    result.push(format!("{}:{};", resource.clone(), resource))
+    result.push(format!("{}:{}", resource.clone(), resource))
   }
 
   result.push("};\n".to_string());
@@ -241,9 +242,14 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
     .quote_style(QuoteStyle::PreferSingle)
     .build();
 
-  let formatted_result = format_text(&PathBuf::from(output.clone()), &result_types, &config)
-    .expect("Could not parse...");
-
-  fs::write(output, formatted_result.as_deref().unwrap_or(&result_types))
-    .expect("Expected to write to the file.");
+  match format_text(&PathBuf::from(output.clone()), &result_types, &config) {
+    Ok(formatted) => {
+      fs::write(output, formatted.as_deref().unwrap_or(&result_types))
+        .expect("Expected to write to the file.");
+    },
+    Err(_) => {
+      error!("Cannot apply format for result file. Raw result will be saved");
+      fs::write(output, result_types).expect("Write result to file error");
+    },
+  }
 }

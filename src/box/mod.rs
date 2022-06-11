@@ -6,31 +6,24 @@ use clap::{Arg, ArgMatches, Command, ValueHint};
 
 pub fn commands() -> Command<'static> {
   return Command::new("box")
-        .about("Interact with box instance")
-        .arg_required_else_help(true)
-        .args(default_config_arg())
-        .subcommand(Command::new("configure")
-            .about(
-            "Initialize box config. With --instance arg, data will be stored under specific key",
-        ))
-        .subcommand(Command::new("rm").about(
-            "Remove box instance config. With --instance arg, specific config key will be removed",
-        ))
-        .subcommand(Command::new("open").about(
-          "Open Aidbox UI. With --instance arg, specific config key will be removed",
-        ))
-        .subcommand(Command::new("info").about(
-            "Show box info based on $version endpoint. With --instance arg, specific config key will be used",
-        ))
-        .subcommand(Command::new("current-user").about(
-            "Show current user info based on provided credentials. With --instance arg, specific config key will be used",
-        ))
-        .subcommand(Command::new("execute-sql").about(
-            "Send content of sql file to $psql endpoint and show result. With --instance arg, specific config key will be removed",
-        ).args(vec![Arg::new("file")
-            .required(true)
-            .help("Path to target .sql file")
-            .value_hint(ValueHint::FilePath)]));
+    .about("Interact with box instance")
+    .arg_required_else_help(true)
+    .args(default_config_arg())
+    .subcommand(Command::new("configure").about("Initialize box config"))
+    .subcommand(Command::new("rm").about("Remove box instance config"))
+    .subcommand(Command::new("open").about("Open Aidbox UI"))
+    .subcommand(Command::new("info").about("Show box info based on $version endpoint"))
+    .subcommand(
+      Command::new("current-user").about("Show current user info based on provided credentials"),
+    )
+    .subcommand(
+      Command::new("execute-sql")
+        .about("Send content of sql file to $psql endpoint and show result")
+        .args(vec![Arg::new("file")
+          .required(true)
+          .help("Path to target .sql file")
+          .value_hint(ValueHint::FilePath)]),
+    );
 }
 
 pub async fn sub_matches(sub_matches: &ArgMatches) {

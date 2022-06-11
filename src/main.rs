@@ -19,7 +19,7 @@ async fn main() {
   setup_panic!();
 
   let mut app = Command::new("aidbox-cli")
-    .about("Aidbox CLI that provide useful command for interact with your box instance")
+    .about("Aidbox CLI tool")
     .version(env!("CARGO_PKG_VERSION"))
     .subcommand_required(true)
     .arg_required_else_help(true)
@@ -38,17 +38,15 @@ async fn main() {
         .global(true)
         .help("Less output per occurrence"),
     ])
-    .subcommand(
-      Command::new("doc").about("Generate doc based on commands and save into USAGE.md file "),
-    )
+    .subcommand(Command::new("doc").about("Generate USAGE.md file"))
     .subcommand(
       Command::new("completion")
-        .about("Generate autocompletion for several shells")
-        .args(vec![Arg::new("generator")
-          .help("Generate autocompletion for provided shell")
+        .about("Generate completion for provided shell")
+        .args(vec![Arg::new("shell")
+          .help("Shell type")
           .required(true)
           .possible_values(Shell::possible_values())
-          .long("generate")]),
+          .long("shell")]),
     )
     .subcommand(generator::commands())
     .subcommand(docker::docker_commands())
@@ -80,9 +78,9 @@ async fn main() {
       fs::write("USAGE.md", markdown).unwrap();
     },
     Some(("completion", sub_matches)) => {
-      if let Ok(generator) = sub_matches.value_of_t::<Shell>("generator") {
-        eprintln!("Generating completion file for {}...", generator);
-        print_completions(generator, &mut app);
+      if let Ok(shell) = sub_matches.value_of_t::<Shell>("shell") {
+        println!("Generating completion file for {}...", shell);
+        print_completions(shell, &mut app);
       };
     },
     Some(("docker-image", sub_matches)) => docker::docker_matches(sub_matches).await,

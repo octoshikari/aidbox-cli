@@ -21,14 +21,14 @@ mod types;
 
 pub fn commands() -> Command<'static> {
   return Command::new("generator")
-    .about("Generate some useful things")
+    .about("Generator with helpers")
     .arg_required_else_help(true)
     .args(default_config_arg())
     .subcommand(types_command())
     .subcommand(sample_commands())
     .subcommand(
       Command::new("cache")
-        .about("Cache commands")
+        .about("Cache")
         .arg_required_else_help(true)
         .subcommand(
           Command::new("stats")
@@ -37,17 +37,17 @@ pub fn commands() -> Command<'static> {
         )
         .subcommand(
           Command::new("rm")
-            .about("Remove specific or all cache item")
+            .about("Remove specific/all cache item(s)")
             .arg_required_else_help(true)
             .args(vec![
               Arg::new("all")
                 .long("all")
-                .help("Remove all cache items")
+                .help("All items")
                 .takes_value(false),
               Arg::new("key")
                 .long("key")
                 .conflicts_with("all")
-                .help("Remove specific cache item")
+                .help("Specific item")
                 .possible_values(&[
                   "confirms",
                   "primitives",

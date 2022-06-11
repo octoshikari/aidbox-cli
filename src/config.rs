@@ -57,7 +57,7 @@ impl Config {
   pub fn update_boxes(&mut self, key: String, value: BoxInstance) {
     self.boxes.insert(key.clone(), value);
     if let Ok(..) = serde_json::to_writer(
-      &File::create(&self.config_file).expect("Cannot save config file"),
+      &File::create(&self.config_file).expect("Canns  ot save config file"),
       &self.boxes,
     ) {
       info!(
@@ -95,9 +95,7 @@ pub fn default_config_arg() -> Vec<Arg<'static>> {
       .long("instance")
       .global(true)
       .value_hint(ValueHint::DirPath)
-      .help(
-        "Save box config under specific key. If key already exists then value will be overwritten",
-      )
+      .help("Box key for save/use to/from config. Example(dev, stage,local,prod, etc.)")
       .default_value("default"),
   ];
 }
