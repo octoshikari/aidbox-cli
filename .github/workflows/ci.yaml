@@ -267,7 +267,7 @@ jobs:
           message: |
             ✅  ${{ github.actor }} created tag ${{github.ref}}:  
 
-            🌐 See changes: https://github.com/${{ github.repository }}/releases/tags/${{steps.tag.outputs.tag}}
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tag/${{steps.tag.outputs.tag}}
 
       - name: send failure telegram message
         if: ${{ needs.release.result == 'failure' }}
@@ -280,4 +280,4 @@ jobs:
           message: |
             ❌ ${{ github.actor }} created tag ${{github.ref}}:  
 
-            🌐 See changes: https://github.com/${{ github.repository }}/releases/tags/${{steps.tag.outputs.tag}}
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tag/${{steps.tag.outputs.tag}}
