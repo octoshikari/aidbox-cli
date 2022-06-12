@@ -112,7 +112,7 @@ pub fn open_ui(sub_matches: &ArgMatches) {
           println!("Open {} in default browser...", instance.url.as_str())
         }
       },
-      None => eprintln!("User info doesn't exist. Please run --configure"),
+      None => eprintln!("User info doesn't exist. Please run - aidbox-cli box configure"),
     }
   }
 }

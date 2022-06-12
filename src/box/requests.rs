@@ -28,7 +28,7 @@ pub struct RpcResult {
   result: RpcResultModel,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct RpcNamespaces {
   result: Vec<String>,
 }
@@ -85,7 +85,7 @@ impl BoxClient {
     }
 
     let excluded_namespaces = RegexSet::new(&[
-      r"^aidbox-cli",
+      r"^aidbox",
       r"^zenbox",
       r"^fhir",
       r"^zen$",
@@ -99,17 +99,17 @@ impl BoxClient {
       .instance
       .post(format!("{}/rpc", &self.base_url))
       .basic_auth(&self.user, Some(&self.password))
-      .body("{:method aidbox-cli.zen/namespaces :params {}}")
+      .body("{:method aidbox.zen/namespaces :params {}}")
       .header(CONTENT_TYPE, "application/edn")
       .header(ACCEPT, "application/json")
       .send();
 
     let source_str = match req.await {
       Ok(it) => it.text().await?,
-      _ => "Error".to_string(),
+      Err(_) => "Error".to_string(),
     };
-    let namespaces: RpcNamespaces = serde_json::from_str(&source_str)?;
 
+    let namespaces: RpcNamespaces = serde_json::from_str(&source_str)?;
     let mut symbols: Vec<String> = Vec::new();
 
     for item in namespaces
@@ -122,7 +122,7 @@ impl BoxClient {
         .post(format!("{}/rpc", &self.base_url))
         .basic_auth(&self.user, Some(&self.password))
         .body(format!(
-          "{{:method aidbox-cli.zen/symbols :params {{:ns {}}}}}",
+          "{{:method aidbox.zen/symbols :params {{:ns {}}}}}",
           item
         ))
         .header(CONTENT_TYPE, "application/edn")
@@ -207,8 +207,7 @@ impl BoxClient {
       Err(err) => {
         println!("{:#?}", err);
         Err(
-          "$version operation doesn't exist. Please update you aidbox-cli on newer version"
-            .to_string(),
+          "$version operation doesn't exist. Please update you aidbox on newer version".to_string(),
         )
       },
     };
@@ -220,7 +219,7 @@ impl BoxClient {
       .post(format!("{}/rpc", &self.base_url))
       .basic_auth(&self.user, Some(&self.password))
       .body(format!(
-        "{{:method aidbox-cli.zen/symbol :params {{ :name {}}}}}",
+        "{{:method aidbox.zen/symbol :params {{ :name {}}}}}",
         symbol
       ))
       .header(CONTENT_TYPE, "application/edn")

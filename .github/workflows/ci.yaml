@@ -250,6 +250,12 @@ jobs:
     needs: [release]
     runs-on: ubuntu-latest
     steps:
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          # Optionally strip `v` prefix
+          strip_v: false
       - name: send success telegram message
         if: ${{ needs.release.result == 'success' }}
         uses: appleboy/telegram-action@master

@@ -1,6 +1,6 @@
-Aidbox CLI that provide useful command for interact with your box instance
+Aidbox CLI tool
 
-Version: 0.3.1
+Version: 0.3.6
 
 Arguments:
 
@@ -16,7 +16,7 @@ Arguments:
 
 ### doc
 
-Generate doc based on commands and save into USAGE.md file 
+Generate USAGE.md file
 
 Arguments:
 
@@ -24,17 +24,17 @@ Arguments:
 
 ### completion
 
-Generate autocompletion for several shells
+Generate completion for provided shell
 
 Arguments:
 
 * `--help`: Print help information
 
-* `--generate=<bash,elvish,fish,powershell,zsh>`: Generate autocompletion for provided shell
+* `--shell=<bash,elvish,fish,powershell,zsh>`: Shell type
 
 ### generator
 
-Generate some useful things
+Generator with helpers
 
 Arguments:
 
@@ -42,13 +42,13 @@ Arguments:
 
 * `--config`: Config dir path
 
-* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
+* `--instance`: Box key for save/use to/from config. Example(dev, stage,local,prod, etc.)
 
 #### Subcommands
 
 ##### types
 
-Work with types generation
+Types generating
 
 Arguments:
 
@@ -72,7 +72,7 @@ Arguments:
 
 * `--config`: Config dir path
 
-* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
+* `--instance`: Box key for save/use to/from config. Example(dev, stage,local,prod, etc.)
 
 * ``Resource name for generation
 
@@ -82,7 +82,7 @@ Arguments:
 
 ##### cache
 
-Cache commands
+Cache
 
 Arguments:
 
@@ -102,15 +102,15 @@ Arguments:
 
 ###### rm
 
-Remove specific or all cache item
+Remove specific/all cache item(s)
 
 Arguments:
 
 * `--help`: Print help information
 
-* `--all`: Remove all cache items
+* `--all`: All items
 
-* `--key=<confirms,primitives,schema,valuesets,symbols,intermediate_types>`: Remove specific cache item
+* `--key=<confirms,primitives,schema,valuesets,symbols,intermediate_types>`: Specific item
 
 ### docker-image
 
@@ -152,13 +152,13 @@ Arguments:
 
 * `--config`: Config dir path
 
-* `--instance`: Save box config under specific key. If key already exists then value will be overwritten
+* `--instance`: Box key for save/use to/from config. Example(dev, stage,local,prod, etc.)
 
 #### Subcommands
 
 ##### configure
 
-Initialize box config. With --instance arg, data will be stored under specific key
+Initialize box config
 
 Arguments:
 
@@ -166,7 +166,15 @@ Arguments:
 
 ##### rm
 
-Remove box instance config. With --instance arg, specific config key will be removed
+Remove box instance config
+
+Arguments:
+
+* `--help`: Print help information
+
+##### open
+
+Open Aidbox UI
 
 Arguments:
 
@@ -174,7 +182,7 @@ Arguments:
 
 ##### info
 
-Show box info based on $version endpoint. With --instance arg, specific config key will be used
+Show box info based on $version endpoint
 
 Arguments:
 
@@ -182,7 +190,7 @@ Arguments:
 
 ##### current-user
 
-Show current user info based on provided credentials. With --instance arg, specific config key will be used
+Show current user info based on provided credentials
 
 Arguments:
 
@@ -190,7 +198,7 @@ Arguments:
 
 ##### execute-sql
 
-Send content of sql file to $psql endpoint and show result. With --instance arg, specific config key will be removed
+Send content of sql file to $psql endpoint and show result
 
 Arguments:
 
