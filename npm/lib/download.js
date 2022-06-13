@@ -72,7 +72,7 @@ function downloadWin(url, dest, opts) {
 function download(_url, dest, opts) {
     const proxy = proxy_from_env.getProxyForUrl(url.parse(_url));
     if (proxy !== "") {
-        var HttpsProxyAgent = require("https-proxy-agent");
+        const HttpsProxyAgent = require("https-proxy-agent");
         opts = {
             ...opts,
             agent: new HttpsProxyAgent(proxy),
@@ -128,7 +128,7 @@ function get(_url, opts) {
 
     const proxy = proxy_from_env.getProxyForUrl(url.parse(_url));
     if (proxy !== "") {
-        var HttpsProxyAgent = require("https-proxy-agent");
+        const HttpsProxyAgent = require("https-proxy-agent");
         opts = {
             ...opts,
             agent: new HttpsProxyAgent(proxy),
@@ -215,7 +215,7 @@ async function getAssetFromGithubApi(opts, assetName, downloadFolder) {
 }
 
 function unzipWindows(zipPath, destinationDir) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli.exe");
         resolve();
     });
@@ -228,7 +228,7 @@ function sanitizePathForPowershell(path) {
 }
 
 function untar(zipPath, destinationDir) {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli");
         resolve();
     });

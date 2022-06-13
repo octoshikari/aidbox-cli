@@ -34,7 +34,7 @@ fn default_status_message() -> String {
 #[derive(Serialize, Clone, Deserialize, Debug)]
 pub struct Config {
   pub config_dir: PathBuf,
-  config_file: PathBuf,
+  pub config_file: PathBuf,
   pub boxes: HashMap<String, BoxInstance>,
 }
 
@@ -82,7 +82,7 @@ impl Config {
     };
   }
 
-  pub fn save_on_disk(&mut self) {
+  pub fn save_on_disk(self) {
     if let Ok(..) = serde_json::to_writer(
       &File::create(&self.config_file).expect("Cannot save config file"),
       &self.boxes,
@@ -90,6 +90,13 @@ impl Config {
       info!("Config file has been saved on disk");
     };
   }
+}
+
+pub fn save_on_disk(config_file: PathBuf, boxes: HashMap<String, BoxInstance>) {
+  if let Ok(..) = serde_json::to_writer(
+    &File::create(config_file).expect("Cannot save config file"),
+    &boxes,
+  ) {};
 }
 
 pub fn default_config_arg() -> Vec<Arg<'static>> {

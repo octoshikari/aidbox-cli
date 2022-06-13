@@ -1,6 +1,6 @@
 {
   "name": "@octoshikari/aidbox-cli",
-  "version": "0.3.7",
+  "version": "0.4.0",
   "description": "CLI for work with HealthSamurai Aidbox",
   "private": false,
   "bin": {
@@ -24,9 +24,6 @@
   "homepage": "https://github.com/octoshikari/aidbox-cli#readme",
   "dependencies": {
     "proxy-from-env": "^1.1.0",
-    "rimraf": "^3.0.2",
-    "decompress": "^4.2.1",
-    "decompress-targz": "4.1.1",
     "request": "^2.88.2",
     "request-promise": "^4.2.6",
     "https-proxy-agent": "^5.0.1"

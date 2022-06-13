@@ -1,10 +1,11 @@
-use crate::config::{BoxInstance, Config};
+use crate::config::{save_on_disk, BoxInstance, Config};
 use crate::r#box::requests::create_box;
 use clap::ArgMatches;
 use console::{style, Emoji};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password};
 use log::error;
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
 use std::str::FromStr;
@@ -182,16 +183,11 @@ pub async fn execute_sql(sub_matches: &ArgMatches) {
 
 pub async fn instance_list(sub_matches: &ArgMatches) {
   let config = Config::new(sub_matches);
+  let mut new_boxes: HashMap<String, BoxInstance> = HashMap::new();
 
   if config.boxes.keys().len() > 0 {
     let need_check = sub_matches.is_present("check");
-    let mut result: Vec<String> = vec![
-      format!(
-        "{0:^10} | {1:^40} | {2:^30} | {3:^10} | {4}",
-        "Instance", "Aidbox URL", "Last Checked", "Status", "Status Message",
-      ),
-      format!("{0:-<120}", "-"),
-    ];
+    let mut result: Vec<String> = vec![];
 
     for (key, mut value) in config.boxes {
       if need_check {
@@ -213,27 +209,46 @@ pub async fn instance_list(sub_matches: &ArgMatches) {
             value.status_message = e.to_string();
           },
         }
+        new_boxes.insert(key.clone(), value.clone());
       }
+      result.push(format!("{}:", style(key.clone()).green().bold().italic()));
       result.push(format!(
-        "{0:^10} | {1:^40} | {2:^30} | {3:^10} | {4}",
-        key,
-        value.url,
+        "{0:<20} {1} {2}",
+        "Aidbox URL",
+        Emoji("▶️", "->"),
+        value.url
+      ));
+      result.push(format!(
+        "{0:<20} {1} {2}",
+        "Last checked",
+        Emoji("▶️", "->"),
         match value.last_checked {
           Some(d) => d.format("%c").to_string(),
           None => "Don't checked".to_string(),
         },
-        format_args!(
-          "{}",
-          match value.status {
-            true => Emoji("✅", "ok"),
-            false => Emoji("⭕", "error"),
-          }
-        ),
+      ));
+      result.push(format!(
+        "{0:<20} {1} {2}",
+        "Status",
+        Emoji("▶️", "->"),
+        match value.status {
+          true => style("Ok").green().bold(),
+          false => style("Error").red().bold(),
+        }
+      ));
+      result.push(format!(
+        "{0:<20} {1} {2}",
+        "Status message",
+        Emoji("▶️", "->"),
         value.status_message,
-      ))
+      ));
     }
 
     println!("{}", result.join("\n"));
+
+    if !new_boxes.is_empty() {
+      save_on_disk(config.config_file, new_boxes);
+    }
   } else {
     println!(
       "You instance list is empty! Please run {}",
