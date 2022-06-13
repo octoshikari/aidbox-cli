@@ -12,6 +12,13 @@ pub fn commands() -> Command<'static> {
     .subcommand(Command::new("configure").about("Initialize box config"))
     .subcommand(Command::new("rm").about("Remove box instance config"))
     .subcommand(Command::new("open").about("Open Aidbox UI"))
+    .subcommand(
+      Command::new("list")
+        .about("Show all available instances")
+        .args(vec![Arg::new("check")
+          .long("check")
+          .help("Check if the configuration of each instance is correct")]),
+    )
     .subcommand(Command::new("info").about("Show box info based on $version endpoint"))
     .subcommand(
       Command::new("current-user").about("Show current user info based on provided credentials"),
@@ -32,6 +39,7 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
     ("configure", sub_matches) => matches::configure(sub_matches).await,
     ("rm", sub_matches) => matches::rm_instance_config(sub_matches),
     ("info", sub_matches) => matches::get_box_info(sub_matches),
+    ("list", sub_matches) => matches::instance_list(sub_matches).await,
     ("open", sub_matches) => matches::open_ui(sub_matches),
     ("current-user", sub_matches) => matches::get_user_info(sub_matches),
     ("execute-sql", sub_matches) => matches::execute_sql(sub_matches).await,

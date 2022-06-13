@@ -216,7 +216,7 @@ async function getAssetFromGithubApi(opts, assetName, downloadFolder) {
 
 function unzipWindows(zipPath, destinationDir) {
     return new Promise((resolve, reject) => {
-        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli");
+        fs.copyFileSync(zipPath,destinationDir + "/aidbox-cli.exe");
         resolve();
     });
 }

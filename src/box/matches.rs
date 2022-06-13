@@ -41,6 +41,9 @@ pub async fn configure(sub_matches: &ArgMatches) {
     url: url.clone(),
     client: username.clone(),
     secret: target_password.clone(),
+    status: false,
+    status_message: "".to_string(),
+    last_checked: None,
     user_info: None,
     box_info: None,
   })
@@ -55,6 +58,9 @@ pub async fn configure(sub_matches: &ArgMatches) {
           client: username,
           secret: target_password,
           user_info: Some(info),
+          status: true,
+          last_checked: Some(chrono::offset::Utc::now()),
+          status_message: "".to_string(),
           box_info: match instance.get_box_version().await {
             Ok(it) => Some(it),
             Err(err) => {
@@ -171,6 +177,68 @@ pub async fn execute_sql(sub_matches: &ArgMatches) {
         },
       }
     }
+  }
+}
+
+pub async fn instance_list(sub_matches: &ArgMatches) {
+  let config = Config::new(sub_matches);
+
+  if config.boxes.keys().len() > 0 {
+    let need_check = sub_matches.is_present("check");
+    let mut result: Vec<String> = vec![
+      format!(
+        "{0:^10} | {1:^40} | {2:^30} | {3:^10} | {4}",
+        "Instance", "Aidbox URL", "Last Checked", "Status", "Status Message",
+      ),
+      format!("{0:-<120}", "-"),
+    ];
+
+    for (key, mut value) in config.boxes {
+      if need_check {
+        println!("Check {} instance...", style(key.clone()).cyan().bold());
+        match create_box(value.clone()).await {
+          Ok(instance) => match instance.get_user_info().await {
+            Ok(_) => {
+              value.last_checked = Some(chrono::offset::Utc::now());
+            },
+            Err(err) => {
+              value.status = false;
+              value.last_checked = Some(chrono::offset::Utc::now());
+              value.status_message = err;
+            },
+          },
+          Err(e) => {
+            value.status = false;
+            value.last_checked = Some(chrono::offset::Utc::now());
+            value.status_message = e.to_string();
+          },
+        }
+      }
+      result.push(format!(
+        "{0:^10} | {1:^40} | {2:^30} | {3:^10} | {4}",
+        key,
+        value.url,
+        match value.last_checked {
+          Some(d) => d.format("%c").to_string(),
+          None => "Don't checked".to_string(),
+        },
+        format_args!(
+          "{}",
+          match value.status {
+            true => Emoji("✅", "ok"),
+            false => Emoji("⭕", "error"),
+          }
+        ),
+        value.status_message,
+      ))
+    }
+
+    println!("{}", result.join("\n"));
+  } else {
+    println!(
+      "You instance list is empty! Please run {}",
+      style("box configure").cyan().bold()
+    )
   }
 }
 

@@ -270,7 +270,6 @@ pub async fn create_box(config: BoxInstance) -> Result<BoxClient, reqwest::Error
 
   return match box_instance.health_check().await {
     Ok(..) => {
-      info!("Box ready!");
       return Ok(box_instance);
     },
     Err(error) => Err(error),

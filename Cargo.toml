@@ -1,6 +1,6 @@
 [package]
 name = "aidbox-cli"
-version = "0.3.6"
+version = "0.3.7"
 edition = "2021"
 authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
 license = "MIT/Apache-2.0"

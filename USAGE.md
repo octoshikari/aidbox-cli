@@ -1,6 +1,6 @@
 Aidbox CLI tool
 
-Version: 0.3.6
+Version: 0.3.7
 
 Arguments:
 
@@ -179,6 +179,16 @@ Open Aidbox UI
 Arguments:
 
 * `--help`: Print help information
+
+##### list
+
+Show all available instances
+
+Arguments:
+
+* `--help`: Print help information
+
+* `--check`: Check if the configuration of each instance is correct
 
 ##### info
 
