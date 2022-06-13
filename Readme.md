@@ -3,6 +3,28 @@
 [![CI](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml)
 [![Code Formatting](https://github.com/octoshikari/aidbox-cli/actions/workflows/checks.yaml/badge.svg)](https://github.com/octoshikari/aidbox-cli/actions/workflows/checks.yaml)
 
+
+## Install
+
+Available via npm
+
+`yarn global add @octoshikari/aidbox-cli`
+
+or
+
+`npm install -g @octoshikari/aidbox-cli`
+
+or
+
+Install from a github release:
+
+`curl -LSfs https://octoshikari.github.io/aidbox-cli/install.sh | sh -s -- --git octoshikari/aidbox-cli`
+
+or
+
+Download a release directly from github: [github.com/octoshikari/aidbox-cli/releases](https://github.com/octoshikari/aidbox-cli/releases)
+
+
 ## Autocompletion
 
 ### ZSH

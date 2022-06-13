@@ -1,6 +1,6 @@
 Aidbox CLI tool
 
-Version: 0.3.7
+Version: 0.4.0
 
 Arguments:
 

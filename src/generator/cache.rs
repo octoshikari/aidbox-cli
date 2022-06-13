@@ -186,16 +186,15 @@ fn cache_stats(sub_matches: &ArgMatches) {
           );
         }
       }
+      println!(
+        "{0: <30} {1} {2}",
+        "Total size: ",
+        Emoji("▶️", "->"),
+        style(HumanBytes(total_size)).bold().blue()
+      );
     } else {
       stat_element(cache_folder.clone(), instance);
     }
-
-    println!(
-      "{0: <30} {1} {2}",
-      "Total size: ",
-      Emoji("▶️", "->"),
-      style(HumanBytes(total_size)).bold().blue()
-    );
   } else {
     error!("Cache folder doesn't exist")
   }

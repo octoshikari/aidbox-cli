@@ -135,7 +135,7 @@ pub fn get_box_info(sub_matches: &ArgMatches) {
             "{0: <20} {1} {2}",
             style(crate::helpers::capitalize(key)).cyan(),
             Emoji("▶️", "->"),
-            style(value.as_str().unwrap().to_string()).italic()
+            style(value.as_str().unwrap_or("").to_string()).italic()
           );
         }
       },
