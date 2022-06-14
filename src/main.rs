@@ -7,8 +7,8 @@ mod md;
 
 use crate::md::app_to_md;
 use chrono::Local;
-use clap::{Arg, Command};
-use clap_complete::{generate, Generator, Shell};
+use clap::{value_parser, Arg, ArgAction, Command};
+use clap_complete::{generate, Shell};
 use human_panic::setup_panic;
 use log::Level;
 use std::io::Write;
@@ -28,13 +28,13 @@ async fn main() {
     .args(vec![
       Arg::new("verbose")
         .short('v')
-        .multiple_occurrences(true)
+        .action(ArgAction::Count)
         .global(true)
         .help("More output per occurrence"),
       Arg::new("quiet")
         .short('q')
         .conflicts_with("verbose")
-        .multiple_occurrences(true)
+        .action(ArgAction::Count)
         .global(true)
         .help("Less output per occurrence"),
     ])
@@ -45,7 +45,8 @@ async fn main() {
         .args(vec![Arg::new("shell")
           .help("Shell type")
           .required(true)
-          .possible_values(Shell::possible_values())
+          .value_parser(value_parser!(Shell))
+          .takes_value(true)
           .long("shell")]),
     )
     .subcommand(generator::commands())
@@ -67,8 +68,8 @@ async fn main() {
     })
     .filter_level(log_level_filter(set_verbosity(
       Some(Level::Info),
-      matches.occurrences_of("quiet") as i8,
-      matches.occurrences_of("verbose") as i8,
+      matches.get_one::<u8>("quiet").copied().unwrap() as i8,
+      matches.get_one::<u8>("verbose").copied().unwrap() as i8,
     )))
     .init();
 
@@ -78,27 +79,21 @@ async fn main() {
       fs::write("USAGE.md", markdown).unwrap();
     },
     Some(("completion", sub_matches)) => {
-      if let Ok(shell) = sub_matches.value_of_t::<Shell>("shell") {
+      if let Some(shell) = sub_matches.get_one::<Shell>("shell").copied() {
         println!("Generating completion file for {}...", shell);
-        print_completions(shell, &mut app);
+        let app_name = app.get_name().to_string();
+
+        generate(shell, &mut app, app_name, &mut io::stdout());
       };
     },
     Some(("docker-image", sub_matches)) => docker::docker_matches(sub_matches).await,
     Some(("generator", sub_matches)) => generator::sub_matches(sub_matches).await,
     Some(("box", sub_matches)) => r#box::sub_matches(sub_matches).await,
-    Some((ext, sub_matches)) => {
-      let args = sub_matches
-        .values_of_os("")
-        .unwrap_or_default()
-        .collect::<Vec<_>>();
-      println!("Calling out to {:?} with {:?}", ext, args);
+    Some((ext, _)) => {
+      println!("Calling out to {:?}", ext);
     },
     _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
   }
-}
-
-fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
-  generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
 }
 
 fn level_enum(verbosity: i8) -> Option<Level> {

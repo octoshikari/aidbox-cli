@@ -126,11 +126,11 @@ pub fn create_cache(cache_path: PathBuf, instance: &str) -> Result<Cache, Error>
 }
 
 fn clear_cache(sub_matches: &ArgMatches) {
-  let all = sub_matches.is_present("all");
-  let key = sub_matches.value_of("key").map(str::to_string);
-  let instance = sub_matches.value_of("instance").unwrap();
+  let all = sub_matches.contains_id("all");
+  let key = sub_matches.get_one::<String>("key");
+  let instance = sub_matches.get_one::<String>("instance").unwrap();
 
-  let mut cache_folder = PathBuf::from(sub_matches.value_of("config").unwrap());
+  let mut cache_folder = PathBuf::from(sub_matches.get_one::<String>("config").unwrap());
   cache_folder.push(".cache");
   cache_folder.push(instance);
 
@@ -145,12 +145,12 @@ fn clear_cache(sub_matches: &ArgMatches) {
       },
     }
   } else {
-    cache_folder.push(format!("{}.json", key.clone().unwrap().as_str()));
+    cache_folder.push(format!("{}.json", key.unwrap()));
 
     match fs::remove_file(&cache_folder) {
       Ok(..) => info!(
         "Cache item '{}' for instance '{}' has been removed",
-        key.unwrap().as_str(),
+        key.unwrap(),
         instance
       ),
       Err(error) => match error.kind() {
@@ -166,9 +166,9 @@ fn clear_cache(sub_matches: &ArgMatches) {
 }
 
 fn cache_stats(sub_matches: &ArgMatches) {
-  let mut cache_folder = PathBuf::from(sub_matches.value_of("config").unwrap());
-  let instance = sub_matches.value_of("instance").unwrap();
-  let all = sub_matches.is_present("all");
+  let mut cache_folder = PathBuf::from(sub_matches.get_one::<String>("config").unwrap());
+  let instance = sub_matches.get_one::<String>("instance").unwrap();
+  let all = sub_matches.contains_id("all");
 
   cache_folder.push(".cache");
 

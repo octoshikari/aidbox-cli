@@ -75,12 +75,12 @@ fn recursive(doc: &mut Document, app: &Command, level: i32, skip_header: bool) {
         def.push_str(long);
       }
 
-      if arg.is_takes_value_set() && arg.get_possible_values().is_some() {
+      if arg.is_takes_value_set() && arg.get_value_parser().possible_values().is_some() {
         def.push_str("=<");
         let values: Vec<&str> = arg
-          .get_possible_values()
+          .get_value_parser()
+          .possible_values()
           .unwrap()
-          .iter()
           .map(|it| it.get_name())
           .collect();
 

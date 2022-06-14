@@ -29,28 +29,28 @@ Download a release directly from github: [github.com/octoshikari/aidbox-cli/rele
 ### ZSH
 
 ```shell
-aidbox-cli completion --generate=zsh > /usr/local/share/zsh/site-functions/_aidbox-cli
+aidbox-cli completion --shell=zsh > /usr/local/share/zsh/site-functions/_aidbox-cli
 compinit
 ```
 
 ### FISH
 
 ```shell
-aidbox-cli completion --generate=fish > aidbox-cli.fish
+aidbox-cli completion --shell=fish > aidbox-cli.fish
 . ./aidbox-cli.fish
 ```
 
 ### BASH
 
 ```shell
-aidbox-cli completion --generate=bash > aidbox-cli.completion
+aidbox-cli completion --shell=bash > aidbox-cli.completion
 source ./aidbox-cli.completion
 ```
 
 ### POWERSHELL
 
 ```shell
-aidbox-cli.exe completion --generate=powershell > aidbox-cli.ps1
+aidbox-cli.exe completion --shell=powershell > aidbox-cli.ps1
 ```
 
 Add result file content into your profile `notepad $profile`

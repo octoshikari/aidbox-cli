@@ -48,7 +48,8 @@ pub fn commands() -> Command<'static> {
                 .long("key")
                 .conflicts_with("all")
                 .help("Specific item")
-                .possible_values(&[
+                .takes_value(true)
+                .value_parser([
                   "confirms",
                   "primitives",
                   "schema",
@@ -109,8 +110,8 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
               warm_up_definitions(
                 config.config_dir,
                 instance,
-                sub_matches.is_present("include-profiles"),
-                sub_matches.value_of("instance").unwrap(),
+                sub_matches.contains_id("include-profiles"),
+                sub_matches.get_one::<String>("instance").unwrap().as_str(),
               )
               .await
               .expect("Error in process zen schemas");

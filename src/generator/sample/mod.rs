@@ -10,12 +10,9 @@ use log::error;
 use rand::seq::SliceRandom;
 use serde_json::{Map, Value};
 
-use crate::config::default_config_arg;
-
 pub fn sample_commands() -> Command<'static> {
   return Command::new("sample")
     .about("Generate sample resources based on loaded schemas")
-    .args(default_config_arg())
     .args(vec![
       Arg::new("resource")
         .help("Resource name for generation")
@@ -27,15 +24,16 @@ pub fn sample_commands() -> Command<'static> {
       Arg::new("type")
         .long("type")
         .required(true)
-        .possible_values(&["full", "only-required"])
+        .takes_value(true)
+        .value_parser(["full", "only-required"])
         .help("Generate partial or full resource"),
     ]);
 }
 
 pub async fn sample_match(sub_matches: &ArgMatches, mut cache_folder: PathBuf) {
-  let resource = sub_matches.value_of("resource").unwrap();
+  let resource = sub_matches.get_one::<String>("resource").unwrap();
 
-  let is_full = match sub_matches.value_of("type").unwrap() {
+  let is_full = match sub_matches.get_one::<String>("type").unwrap().as_str() {
     "full" => true,
     "only_required" => false,
     _ => false,
@@ -127,7 +125,7 @@ fn generate_nested(keys: &Map<String, Value>, is_full: bool, result: &mut HashMa
                 "date" => {
                   let val: chrono::DateTime<Utc> = DateTimeBetween(
                     EN,
-                    chrono::Utc.timestamp(31550, 0),
+                    Utc.timestamp(31550, 0),
                     Utc::now() - Duration::days(3650),
                   )
                   .fake();
@@ -139,7 +137,7 @@ fn generate_nested(keys: &Map<String, Value>, is_full: bool, result: &mut HashMa
                 "dateTime" => {
                   let val: chrono::DateTime<Utc> = DateTimeBetween(
                     EN,
-                    chrono::Utc.timestamp(31550, 0),
+                    Utc.timestamp(31550, 0),
                     Utc::now() - Duration::days(3650),
                   )
                   .fake();

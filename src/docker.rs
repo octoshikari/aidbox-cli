@@ -21,13 +21,15 @@ pub fn docker_commands() -> Command<'static> {
         .help("Image tag")
         .requires("image")
         .global(true)
-        .possible_values(&["edge", "latest", "stable"]),
+        .takes_value(true)
+        .value_parser(["edge", "latest", "stable"]),
       Arg::new("image")
         .long("image")
         .global(true)
         .help("Image name")
         .requires("tag")
-        .possible_values(&["devbox", "aidboxone", "multibox"]),
+        .takes_value(true)
+        .value_parser(["devbox", "aidboxone", "multibox"]),
     ])
     .subcommand(
       Command::new("remote")
@@ -64,8 +66,8 @@ struct TagResults {
 }
 
 async fn check_latest_version_on_dockerhub(sub_matches: &ArgMatches) {
-  let tag = sub_matches.value_of("tag").unwrap();
-  let target_image = sub_matches.value_of("image").unwrap();
+  let tag = sub_matches.get_one::<String>("tag").unwrap();
+  let target_image = sub_matches.get_one::<String>("image").unwrap();
 
   let docker = match Docker::connect_with_socket_defaults() {
     Ok(it) => it,
@@ -131,8 +133,8 @@ async fn check_latest_version_on_dockerhub(sub_matches: &ArgMatches) {
 }
 
 async fn pull_latest_image_from_dockerhub(sub_matches: &ArgMatches) {
-  let tag = sub_matches.value_of("tag").unwrap();
-  let target_image = sub_matches.value_of("image").unwrap();
+  let tag = sub_matches.get_one::<String>("tag").unwrap();
+  let target_image = sub_matches.get_one::<String>("image").unwrap();
 
   let docker = match Docker::connect_with_socket_defaults() {
     Ok(it) => it,

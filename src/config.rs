@@ -40,7 +40,7 @@ pub struct Config {
 
 impl Config {
   pub fn new(matches: &ArgMatches) -> Config {
-    let config_dir = PathBuf::from(matches.value_of("config").unwrap().to_string());
+    let config_dir = PathBuf::from(matches.get_one::<String>("config").unwrap());
 
     if !config_dir.exists() {
       fs::create_dir_all(&config_dir).expect("Cannot create config dir");

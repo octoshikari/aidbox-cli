@@ -1,6 +1,6 @@
 [package]
 name = "aidbox-cli"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -35,7 +35,7 @@ dialoguer = "0.10"
 human-panic = "1"
 pulldown-cmark = "0.9"
 pulldown-cmark-to-cmark = "10"
-clap_complete = "3"
+clap_complete = "3.2.1"
 console = "0.15"
 itertools = "0.10.3"
 colorful = "0.2.1"

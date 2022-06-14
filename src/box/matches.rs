@@ -12,7 +12,7 @@ use std::str::FromStr;
 
 pub async fn configure(sub_matches: &ArgMatches) {
   let mut config = Config::new(sub_matches);
-  let key = sub_matches.value_of("instance").unwrap();
+  let key = sub_matches.get_one::<String>("instance").unwrap();
   let (current_url, current_username, current_password) = match config.boxes.get(key) {
     Some(current_box) => (
       Some(current_box.url.clone()),
@@ -149,7 +149,7 @@ pub fn get_box_info(sub_matches: &ArgMatches) {
 
 pub async fn execute_sql(sub_matches: &ArgMatches) {
   if let Ok((config, key)) = get_config_or_error(sub_matches) {
-    let file_path = sub_matches.value_of("file").unwrap();
+    let file_path = *sub_matches.get_one::<&str>("file").unwrap();
     let box_config = config.boxes.get(key).unwrap();
     let file = fs::read_to_string(file_path);
     if file.is_err() {
@@ -186,7 +186,7 @@ pub async fn instance_list(sub_matches: &ArgMatches) {
   let mut new_boxes: HashMap<String, BoxInstance> = HashMap::new();
 
   if config.boxes.keys().len() > 0 {
-    let need_check = sub_matches.is_present("check");
+    let need_check = sub_matches.contains_id("check");
     let mut result: Vec<String> = vec![];
 
     for (key, mut value) in config.boxes {
@@ -258,7 +258,7 @@ pub async fn instance_list(sub_matches: &ArgMatches) {
 }
 
 pub fn get_config_or_error(sub_matches: &ArgMatches) -> Result<(Config, &str), String> {
-  let key = sub_matches.value_of("instance").unwrap();
+  let key = sub_matches.get_one::<String>("instance").unwrap();
   let config = Config::new(sub_matches);
   if config.boxes.get(key).is_none() {
     error!("Instance config with key '{}' doesn't exist", key);
