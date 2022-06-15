@@ -39,7 +39,7 @@ clap_complete = "3.2.1"
 console = "0.15"
 itertools = "0.10.3"
 colorful = "0.2.1"
-fake = {version ="2.4", features = ["chrono"]}
+fake = {version ="2.5", features = ["chrono"]}
 rand = "0.8"
 webbrowser = "0.7.1"
 
