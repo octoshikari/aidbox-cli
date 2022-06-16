@@ -194,14 +194,6 @@ Arguments:
 
 * `--help`: Print help information
 
-##### current-user
-
-Show current user info based on provided credentials
-
-Arguments:
-
-* `--help`: Print help information
-
 ##### execute-sql
 
 Send content of sql file to $psql endpoint and show result

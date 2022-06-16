@@ -21,9 +21,6 @@ pub fn commands() -> Command<'static> {
     )
     .subcommand(Command::new("info").about("Show box info based on $version endpoint"))
     .subcommand(
-      Command::new("current-user").about("Show current user info based on provided credentials"),
-    )
-    .subcommand(
       Command::new("execute-sql")
         .about("Send content of sql file to $psql endpoint and show result")
         .args(vec![Arg::new("file")
@@ -41,7 +38,6 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
     ("info", sub_matches) => matches::get_box_info(sub_matches),
     ("list", sub_matches) => matches::instance_list(sub_matches).await,
     ("open", sub_matches) => matches::open_ui(sub_matches),
-    ("current-user", sub_matches) => matches::get_user_info(sub_matches),
     ("execute-sql", sub_matches) => matches::execute_sql(sub_matches).await,
     (name, _) => {
       unreachable!("Unsupported subcommand `{}`", name)

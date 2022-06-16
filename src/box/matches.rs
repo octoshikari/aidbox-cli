@@ -98,17 +98,6 @@ pub fn rm_instance_config(sub_matches: &ArgMatches) {
   }
 }
 
-pub fn get_user_info(sub_matches: &ArgMatches) {
-  if let Ok((config, key)) = get_config_or_error(sub_matches) {
-    let instance = config.boxes.get(key).unwrap();
-
-    match &instance.user_info {
-      Some(info) => println!("{}", serde_json::to_string_pretty(info).unwrap()),
-      None => eprintln!("User info doesn't exist. Please run --configure"),
-    }
-  }
-}
-
 pub fn open_ui(sub_matches: &ArgMatches) {
   if let Ok((config, key)) = get_config_or_error(sub_matches) {
     let instance = config.boxes.get(key).unwrap();

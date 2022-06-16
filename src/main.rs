@@ -76,7 +76,7 @@ async fn main() {
   match matches.subcommand() {
     Some(("doc", _)) => {
       let markdown = app_to_md(&app, 1).unwrap();
-      fs::write("USAGE.md", markdown).unwrap();
+      fs::write("USAGE.md", markdown).expect("Unable to write file")
     },
     Some(("completion", sub_matches)) => {
       if let Some(shell) = sub_matches.get_one::<Shell>("shell").copied() {
