@@ -1,7 +1,11 @@
 use itertools::Itertools;
+use log::error;
 use std::collections::HashMap;
+use std::fs;
+use std::path::PathBuf;
+use std::process::exit;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Clone, Eq, PartialEq, Debug)]
 pub struct ElementWrapper {
@@ -102,4 +106,40 @@ pub fn deep_merge_element_schema(
     }
     new_result
   };
+}
+
+#[derive(Deserialize, Clone)]
+pub struct ExcludeConfig {
+  pub ns: Option<Vec<String>>,
+  pub symbols: Option<Vec<String>>,
+  pub tags: Option<Vec<String>>,
+}
+
+pub fn read_exclude_config(path: Option<&String>) -> ExcludeConfig {
+  match path {
+    Some(p) => match PathBuf::from(p).exists() {
+      true => match fs::read_to_string(p) {
+        Ok(json) => match serde_json::from_str::<ExcludeConfig>(&json) {
+          Ok(data) => data,
+          Err(err) => {
+            error!("Error while read config json: {}", err.to_string());
+            exit(1);
+          },
+        },
+        Err(err) => {
+          error!("Error while read config json {}", err.to_string());
+          exit(1);
+        },
+      },
+      false => {
+        error!("{} doesn't exist", p);
+        exit(1);
+      },
+    },
+    None => ExcludeConfig {
+      ns: None,
+      symbols: None,
+      tags: None,
+    },
+  }
 }

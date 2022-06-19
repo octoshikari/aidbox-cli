@@ -1,4 +1,5 @@
 use crate::config::default_config_arg;
+use crate::generator::common::ExcludeConfig;
 use crate::generator::types::types_command;
 use clap::{Arg, ArgMatches, Command};
 use console::style;
@@ -13,7 +14,7 @@ use crate::r#box::requests::create_box;
 use self::sample::{sample_commands, sample_match};
 
 mod cache;
-mod common;
+pub mod common;
 pub mod helpers;
 mod reader;
 mod sample;
@@ -112,6 +113,11 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
                 instance,
                 sub_matches.contains_id("include-profiles"),
                 sub_matches.get_one::<String>("instance").unwrap().as_str(),
+                ExcludeConfig {
+                  ns: None,
+                  symbols: None,
+                  tags: None,
+                },
               )
               .await
               .expect("Error in process zen schemas");

@@ -2,7 +2,7 @@ use crate::generator::common::{Element, ElementSchema};
 use crate::generator::helpers::key_required;
 use dprint_plugin_typescript::configuration::{ConfigurationBuilder, QuoteStyle};
 use dprint_plugin_typescript::format_text;
-use log::error;
+use log::warn;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -209,12 +209,12 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
       }
     } else {
       result.push(format!(
-        "export interface {} extends {}",
+        "export interface {} {}",
         name.clone(),
         match value.extends {
           Some(mut it) => {
             it.sort_by_key(|a| a.to_lowercase());
-            format!("{} {{ ", it.join(" , "))
+            format!("extends {} {{ ", it.join(" , "))
           },
           None => "{ ".to_string(),
         }
@@ -248,7 +248,7 @@ pub fn write_typescript_types(types: HashMap<String, Element>, fhir: bool, outpu
         .expect("Expected to write to the file.");
     },
     Err(_) => {
-      error!("Cannot apply format for result file. Raw result will be saved");
+      warn!("Cannot apply format for result file. Raw result will be saved");
       fs::write(output, result_types).expect("Write result to file error");
     },
   }

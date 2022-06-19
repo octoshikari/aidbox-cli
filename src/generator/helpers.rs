@@ -1,5 +1,5 @@
 use crate::generator::cache::{create_cache, Cache};
-use crate::generator::common::Element;
+use crate::generator::common::{Element, ExcludeConfig};
 use crate::helpers::kebab_to_camel;
 use crate::r#box::requests::BoxClient;
 use log::{error, info};
@@ -104,7 +104,7 @@ pub async fn get_confirms_value(
 }
 
 pub fn wrap_key(source: &str) -> String {
-  return if source.contains('-') || source == "type" {
+  return if source.contains('-') || source == "type" || source.contains('?') {
     format!("'{}'", source)
   } else {
     source.to_string()
@@ -287,6 +287,7 @@ pub async fn warm_up_definitions(
   instance: BoxClient,
   include_profiles: bool,
   instance_tag: &str,
+  exclude: ExcludeConfig,
 ) -> Result<(HashMap<String, Element>, Cache), Box<dyn Error>> {
   let cache_init = create_cache(config_dir, instance_tag);
   let mut cache = match cache_init {
@@ -299,7 +300,7 @@ pub async fn warm_up_definitions(
       it
     },
   };
-  let types = match read_schema(instance, &mut cache, include_profiles).await {
+  let types = match read_schema(instance, &mut cache, include_profiles, exclude).await {
     Ok(it) => it,
     Err(err) => {
       error!("{:#?}", err);

@@ -2,6 +2,7 @@ mod typescript;
 
 use std::{path::PathBuf, process::exit};
 
+use crate::generator::common::read_exclude_config;
 use crate::generator::helpers::warm_up_definitions;
 use crate::generator::types::typescript::write_typescript_types;
 use clap::{Arg, ArgMatches, Command, ValueHint};
@@ -11,6 +12,10 @@ use crate::r#box::requests::BoxClient;
 
 pub fn types_command() -> Command<'static> {
   return Command::new("types").about("Types generating").args(vec![
+    Arg::new("exclude")
+      .long("exclude")
+      .help("Exclude config. Should follow structure {\"ns\": [], \"symbols\": [], \"tags\": []}")
+      .value_hint(ValueHint::FilePath),
     Arg::new("include-profiles")
       .long("include-profiles")
       .takes_value(false)
@@ -39,11 +44,14 @@ pub async fn generate(
   config_dir: PathBuf,
   instance_tag: &str,
 ) {
+  let exclude_config = read_exclude_config(sub_matches.get_one::<String>("exclude"));
+
   let (types, _cache) = match warm_up_definitions(
     config_dir,
     instance,
     sub_matches.contains_id("include-profiles"),
     instance_tag,
+    exclude_config,
   )
   .await
   {

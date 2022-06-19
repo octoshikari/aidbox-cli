@@ -6,10 +6,12 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
-use std::fs::{self, File};
+use std::fs;
+use std::fs::File;
 use std::path::PathBuf;
 
 use crate::config::BoxInstance;
+use crate::generator::common::ExcludeConfig;
 
 type RpcModel = HashMap<String, Value>;
 
@@ -66,7 +68,11 @@ impl BoxClient {
       password: config.secret,
     }
   }
-  pub async fn load_all_symbols(&self, cache_path: PathBuf) -> Result<Vec<String>, Box<dyn Error>> {
+  pub async fn load_all_symbols(
+    &self,
+    cache_path: PathBuf,
+    exclude: ExcludeConfig,
+  ) -> Result<Vec<String>, Box<dyn Error>> {
     let mut target_path = cache_path.clone();
     target_path.push("symbols.json");
 
@@ -85,15 +91,46 @@ impl BoxClient {
     }
 
     let excluded_namespaces = RegexSet::new(&[
-      r"^aidbox",
       r"^zenbox",
-      r"^fhir",
+      r"^lisp",
+      r"aidbox.metrics",
+      r"fhir$",
       r"^zen$",
       r"^zen.fhir",
       r"\.value-set\.",
       r"\.search\.",
+      r"^aidbox.sdc",
+      r"^aidbox.notebooks",
+      r"^aidbox.mock",
     ])
     .unwrap();
+
+    let excluded_symbols: Vec<String> = vec![
+      "aidbox/Configuration".to_string(),
+      "aidbox/config".to_string(),
+      "aidbox/devbox-config".to_string(),
+      "aidbox/http".to_string(),
+      "aidbox/nested-schema".to_string(),
+      "aidbox/seed".to_string(),
+      "aidbox/service".to_string(),
+      "aidbox/system".to_string(),
+      "aidbox.rest.v1/base-op".to_string(),
+      "aidbox.rest.acl/base-operation".to_string(),
+      "aidbox.rest.acl/sql-params".to_string(),
+      "aidbox.rest.acl/filter-expression".to_string(),
+      "aidbox.rest/.api-op".to_string(),
+      "aidbox.rest/op".to_string(),
+    ];
+
+    let user_exclude_ns = match exclude.ns {
+      Some(ns) => ns,
+      None => vec![],
+    };
+
+    let user_exclude_symbols = match exclude.symbols {
+      Some(sym) => sym,
+      None => vec![],
+    };
 
     let req = self
       .instance
@@ -110,12 +147,14 @@ impl BoxClient {
     };
 
     let namespaces: RpcNamespaces = serde_json::from_str(&source_str)?;
+
     let mut symbols: Vec<String> = Vec::new();
 
     for item in namespaces
       .result
       .into_iter()
       .filter(|item| !excluded_namespaces.is_match(item))
+      .filter(|item| !user_exclude_ns.contains(item))
     {
       let namespace_req = self
         .instance
@@ -138,7 +177,11 @@ impl BoxClient {
       };
       let namespace_items: RpcNamespace = serde_json::from_str(&namespace_str)?;
       for sym in namespace_items.result.into_iter() {
-        symbols.push(format!("{}/{}", item, sym.name));
+        let symbol_name = format!("{}/{}", item, sym.name);
+        if !excluded_symbols.contains(&symbol_name) && !user_exclude_symbols.contains(&symbol_name)
+        {
+          symbols.push(symbol_name);
+        }
       }
     }
     if let Ok(..) = serde_json::to_writer(&File::create(target_path.to_str().unwrap())?, &symbols) {

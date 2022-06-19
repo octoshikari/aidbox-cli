@@ -1,5 +1,5 @@
 use crate::generator::cache::Cache;
-use crate::generator::common::deep_merge_element_schema;
+use crate::generator::common::{deep_merge_element_schema, ExcludeConfig};
 use crate::generator::helpers::{
   convert_primitive, get_description, get_description_value, get_name, get_symbol, get_value_set,
   init_confirms, init_confirms_value, init_reference_confirms_value, is_persistent_any,
@@ -22,6 +22,20 @@ async fn read_vector(
   value: &Value,
 ) -> Result<ElementSchema, Box<dyn Error>> {
   let description = get_description_value(value);
+
+  if value.get("every").is_none() {
+    return Ok(ElementSchema {
+      extends: None,
+      is_array: true,
+      is_reference: false,
+      require: false,
+      description,
+      sub_type: None,
+      plain_type: None,
+      values: None,
+    });
+  }
+
   let every = value.get("every").unwrap();
   let confirms = init_confirms_value(box_instance, cache, every).await?;
 
@@ -274,6 +288,17 @@ async fn read_vector(
         description,
         sub_type: None,
         plain_type: Some("integer".to_string()),
+        values: None,
+      })
+    } else if vector_type == "zen/keyword" {
+      Ok(ElementSchema {
+        extends: Some(confirms),
+        is_array: true,
+        is_reference: false,
+        require: false,
+        description,
+        sub_type: None,
+        plain_type: Some("string".to_string()),
         values: None,
       })
     } else {
@@ -577,9 +602,51 @@ async fn read_map(
             values: None,
           },
         );
+      } else if source_type == "zen/any" {
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
+            description: get_description_value(value),
+            require: required.contains(key),
+            sub_type: None,
+            plain_type: Some("any".to_string()),
+            extends: Some(value_confirms),
+            is_array: false,
+            is_reference: false,
+            values: None,
+          },
+        );
+      } else if source_type == "zen/symbol" {
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
+            description: get_description_value(value),
+            require: required.contains(key),
+            sub_type: None,
+            plain_type: Some("string".to_string()),
+            extends: Some(value_confirms),
+            is_array: false,
+            is_reference: false,
+            values: None,
+          },
+        );
+      } else if source_type == "zen/set" {
+        result_map.insert(
+          wrap_key(key),
+          ElementSchema {
+            description: get_description_value(value),
+            require: required.contains(key),
+            sub_type: None,
+            plain_type: Some("string".to_string()),
+            extends: Some(value_confirms),
+            is_array: true,
+            is_reference: false,
+            values: None,
+          },
+        );
       } else {
         println!("Unknown type {:#?} {:?}, {:#?}", resource_name, key, value);
-        // std::process::exit(0);
+        std::process::exit(0);
       }
     } else {
       result_map.insert(
@@ -756,6 +823,7 @@ async fn symbol_read(
   cache: &mut Cache,
   symbol: &String,
   include_profiles: bool,
+  exclude: ExcludeConfig,
 ) -> Result<Option<ElementWrapper>, Box<dyn Error>> {
   let definition = get_symbol(box_instance, cache, symbol).await?;
 
@@ -767,10 +835,38 @@ async fn symbol_read(
       .filter_map(Value::as_str)
       .collect();
 
+    let excluded_tags = vec![
+      "zen.fhir/search".to_string(),
+      "zen/tag".to_string(),
+      "aidbox.rest/param-engine".to_string(),
+      "aidbox.rest/search-by-engine".to_string(),
+      "aidbox.rest/op-engine".to_string(),
+      "aidbox.rest/middleware-engine".to_string(),
+      "aidbox.rest.acl/filter-table-insert-engine".to_string(),
+      "aidbox.rest.acl/coerce-method".to_string(),
+      "aidbox.rest.acl/sql-template".to_string(),
+      "aidbox.rest/op".to_string(),
+      "aidbox.rest.acl/filter".to_string(),
+      "aidbox.rest/api".to_string(),
+      "aidbox.rest.acl/request-param".to_string(),
+      "aidbox.rest/middleware".to_string(),
+      "aidbox.auth/grant-lookup".to_string(),
+      "aidbox/system".to_string(),
+      "aidbox/service".to_string(),
+    ];
+
+    let user_excluded_tags = match exclude.tags {
+      Some(t) => t,
+      None => vec![],
+    };
+
     if tags.contains(&"zen.fhir/profile-schema") && !include_profiles {
       return Ok(None);
     }
-    if tags.contains(&"zen.fhir/search") {
+
+    if tags.iter().any(|item| {
+      excluded_tags.contains(&item.to_string()) || user_excluded_tags.contains(&item.to_string())
+    }) {
       return Ok(None);
     }
 
@@ -997,9 +1093,10 @@ pub async fn read_schema(
   box_instance: BoxClient,
   cache: &mut Cache,
   include_profiles: bool,
+  exclude: ExcludeConfig,
 ) -> Result<HashMap<String, Element>, Box<dyn Error>> {
   let symbols = box_instance
-    .load_all_symbols(cache.cache_path.clone())
+    .load_all_symbols(cache.cache_path.clone(), exclude.clone())
     .await?;
   let pb = ProgressBar::new(symbols.len() as u64);
   pb.set_style(
@@ -1011,7 +1108,15 @@ pub async fn read_schema(
   let mut result: HashMap<String, Element> = HashMap::new();
 
   for symbol in symbols.iter() {
-    if let Ok(it) = symbol_read(&box_instance, cache, symbol, include_profiles).await {
+    if let Ok(it) = symbol_read(
+      &box_instance,
+      cache,
+      symbol,
+      include_profiles,
+      exclude.clone(),
+    )
+    .await
+    {
       if it.is_some() {
         let new_element = it.unwrap();
 
