@@ -202,13 +202,13 @@ pub async fn instance_list(sub_matches: &ArgMatches) {
       }
       result.push(format!("{}:", style(key.clone()).green().bold().italic()));
       result.push(format!(
-        "{0:<20} {1} {2}",
+        "{0:<20} {1}  {2}",
         "Aidbox URL",
         Emoji("▶️", "->"),
         value.url
       ));
       result.push(format!(
-        "{0:<20} {1} {2}",
+        "{0:<20} {1}  {2}",
         "Last checked",
         Emoji("▶️", "->"),
         match value.last_checked {
@@ -217,7 +217,7 @@ pub async fn instance_list(sub_matches: &ArgMatches) {
         },
       ));
       result.push(format!(
-        "{0:<20} {1} {2}",
+        "{0:<20} {1}  {2}",
         "Status",
         Emoji("▶️", "->"),
         match value.status {
@@ -226,7 +226,7 @@ pub async fn instance_list(sub_matches: &ArgMatches) {
         }
       ));
       result.push(format!(
-        "{0:<20} {1} {2}",
+        "{0:<20} {1}  {2}",
         "Status message",
         Emoji("▶️", "->"),
         value.status_message,
