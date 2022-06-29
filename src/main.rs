@@ -4,6 +4,7 @@ mod docker;
 mod generator;
 pub mod helpers;
 mod md;
+mod self_update;
 
 use crate::md::app_to_md;
 use chrono::Local;
@@ -51,7 +52,8 @@ async fn main() {
     )
     .subcommand(generator::commands())
     .subcommand(docker::docker_commands())
-    .subcommand(r#box::commands());
+    .subcommand(r#box::commands())
+    .subcommand(self_update::commands());
 
   let matches = app.clone().get_matches();
 
@@ -89,6 +91,7 @@ async fn main() {
     Some(("docker-image", sub_matches)) => docker::docker_matches(sub_matches).await,
     Some(("generator", sub_matches)) => generator::sub_matches(sub_matches).await,
     Some(("box", sub_matches)) => r#box::sub_matches(sub_matches).await,
+    Some(("update", _)) => self_update::update().await,
     Some((ext, _)) => {
       println!("Calling out to {:?}", ext);
     },
