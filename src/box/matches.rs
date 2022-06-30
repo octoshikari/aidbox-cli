@@ -4,7 +4,7 @@ use clap::ArgMatches;
 use console::{style, Emoji};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password};
-use log::error;
+use log::{error, info};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
@@ -45,40 +45,37 @@ pub async fn configure(sub_matches: &ArgMatches) {
     status: false,
     status_message: "".to_string(),
     last_checked: None,
-    user_info: None,
-    box_info: None,
   })
   .await;
 
-  match box_check {
+  let (status, message) = match box_check {
     Ok(instance) => match instance.get_user_info().await {
-      Ok(info) => config.update_boxes(
-        key.to_string(),
-        BoxInstance {
-          url,
-          client: username,
-          secret: target_password,
-          user_info: Some(info),
-          status: true,
-          last_checked: Some(chrono::offset::Utc::now()),
-          status_message: "".to_string(),
-          box_info: match instance.get_box_version().await {
-            Ok(it) => Some(it),
-            Err(err) => {
-              error!("{}", err);
-              None
-            },
-          },
-        },
-      ),
+      Ok(_) => {
+        info!("Box auth success");
+        (true, "".to_string())
+      },
       Err(err) => {
-        error!("{:?}", err);
+        error!("Box auth check. Error: {}", err);
+        (false, err)
       },
     },
     Err(err) => {
-      error!("{:?}", err);
+      error!("Box unhealthy. Error {}", err.to_string());
+      (false, err.to_string())
     },
-  }
+  };
+
+  config.update_boxes(
+    key.to_string(),
+    BoxInstance {
+      url,
+      client: username,
+      secret: target_password,
+      status,
+      last_checked: Some(chrono::offset::Utc::now()),
+      status_message: message,
+    },
+  )
 }
 
 pub fn rm_instance_config(sub_matches: &ArgMatches) {
@@ -93,7 +90,7 @@ pub fn rm_instance_config(sub_matches: &ArgMatches) {
       .expect("Confirm prompt error")
     {
       config.boxes.remove(key);
-      config.save_on_disk();
+      save_on_disk(config.config_file, config.boxes);
     }
   }
 }
@@ -102,36 +99,53 @@ pub fn open_ui(sub_matches: &ArgMatches) {
   if let Ok((config, key)) = get_config_or_error(sub_matches) {
     let instance = config.boxes.get(key).unwrap();
 
-    match &instance.box_info {
-      Some(_) => {
-        if webbrowser::open(instance.url.clone().as_str()).is_ok() {
-          println!("Open {} in default browser...", instance.url.as_str())
-        }
-      },
-      None => eprintln!("User info doesn't exist. Please run - aidbox-cli box configure"),
+    if webbrowser::open(instance.url.clone().as_str()).is_ok() {
+      info!("Open {} in default browser...", instance.url.as_str())
     }
   }
 }
 
-pub fn get_box_info(sub_matches: &ArgMatches) {
-  if let Ok((config, key)) = get_config_or_error(sub_matches) {
-    let instance = config.boxes.get(key).unwrap();
+pub async fn get_box_info(sub_matches: &ArgMatches) {
+  if let Ok((mut config, key)) = get_config_or_error(sub_matches) {
+    let box_config = config.boxes.get(key).unwrap();
 
-    match &instance.box_info {
-      Some(info) => {
-        for (key, value) in info.as_object().unwrap().iter() {
-          println!(
-            "{0: <20} {1} {2}",
-            style(crate::helpers::capitalize(key)).cyan(),
-            Emoji("▶️", "->"),
-            style(value.as_str().unwrap_or("").to_string()).italic()
-          );
-        }
+    let box_check = create_box(box_config.clone()).await;
+
+    match box_check {
+      Ok(instance) => match instance.get_user_info().await {
+        Err(err) => {
+          error!("Auth error: {}", err);
+        },
+        Ok(_) => match instance.get_box_version().await {
+          Ok(result) => {
+            for (key, value) in result.as_object().unwrap().iter() {
+              println!(
+                "{0: <20} {1} {2}",
+                style(crate::helpers::capitalize(
+                  key.as_str().replace('-', " ").as_str()
+                ))
+                .cyan(),
+                Emoji("▶️", "->"),
+                style(value.as_str().unwrap_or("").to_string()).italic()
+              );
+            }
+          },
+          Err(err) => {
+            error!("Get box info error: {}", err);
+
+            let mut new_config = box_config.clone();
+
+            new_config.status = false;
+            new_config.status_message = err;
+            new_config.last_checked = Some(chrono::offset::Utc::now());
+
+            config.update_boxes(key.to_string(), new_config)
+          },
+        },
       },
-      None => eprintln!(
-        "Box info doesn't exist. Please run {}'",
-        style("box configure").cyan()
-      ),
+      Err(err) => {
+        error!("Box unhealthy. {}", err.to_string());
+      },
     }
   }
 }
@@ -185,6 +199,8 @@ pub async fn instance_list(sub_matches: &ArgMatches) {
           Ok(instance) => match instance.get_user_info().await {
             Ok(_) => {
               value.last_checked = Some(chrono::offset::Utc::now());
+              value.status_message = "".to_string();
+              value.status = true;
             },
             Err(err) => {
               value.status = false;
@@ -250,8 +266,8 @@ pub fn get_config_or_error(sub_matches: &ArgMatches) -> Result<(Config, &str), S
   let key = sub_matches.get_one::<String>("instance").unwrap();
   let config = Config::new(sub_matches);
   if config.boxes.get(key).is_none() {
-    error!("Instance config with key '{}' doesn't exist", key);
-    Err(format!("Instance config with key '{}' doesn't exist", key))
+    error!("Instance '{}' doesn't exist", key);
+    Err(format!("Instance '{}' doesn't exist", key))
   } else {
     Ok((config, key))
   }

@@ -1,6 +1,6 @@
 Aidbox CLI tool
 
-Version: 0.4.1
+Version: 0.4.3
 
 Arguments:
 
@@ -53,6 +53,8 @@ Types generating
 Arguments:
 
 * `--help`: Print help information
+
+* `--exclude`: Exclude config. Should follow structure {"ns": [], "symbols": [], "tags": []}
 
 * `--include-profiles`: Include profiles
 
@@ -203,3 +205,11 @@ Arguments:
 * `--help`: Print help information
 
 * ``Path to target .sql file
+
+### update
+
+Self update. For move and set file permission we will ask your sudo password
+
+Arguments:
+
+* `--help`: Print help information

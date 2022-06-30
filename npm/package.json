@@ -1,6 +1,6 @@
 {
   "name": "@octoshikari/aidbox-cli",
-  "version": "0.4.2",
+  "version": "0.4.3",
   "description": "CLI for work with HealthSamurai Aidbox",
   "private": false,
   "bin": {

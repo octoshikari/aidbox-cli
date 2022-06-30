@@ -1,11 +1,9 @@
 use chrono::{DateTime, Utc};
 use clap::{Arg, ArgMatches, ValueHint};
-use log::info;
+use log::{error, info};
 use serde::{Deserialize, Deserializer, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
-use std::fs::File;
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -13,18 +11,11 @@ pub struct BoxInstance {
   pub url: String,
   pub client: String,
   pub secret: String,
-  #[serde(default = "default_status")]
   pub status: bool,
   #[serde(default = "default_status_message")]
   pub status_message: String,
   #[serde(default, deserialize_with = "config_option_datefmt")]
   pub last_checked: Option<DateTime<Utc>>,
-  pub user_info: Option<Value>,
-  pub box_info: Option<Value>,
-}
-
-fn default_status() -> bool {
-  true
 }
 
 fn default_status_message() -> String {
@@ -43,23 +34,37 @@ impl Config {
     let config_dir = PathBuf::from(matches.get_one::<String>("config").unwrap());
 
     if !config_dir.exists() {
-      fs::create_dir_all(&config_dir).expect("Cannot create config dir");
+      match fs::create_dir_all(&config_dir) {
+        Err(err) => {
+          error!(
+            "Cannot create config dir by path '{}'. Error: {}",
+            config_dir.to_str().unwrap(),
+            err.to_string()
+          );
+          std::process::exit(1);
+        },
+        _ => {},
+      }
     }
 
     let mut config_file = config_dir.clone();
     config_file.push("config");
 
     let boxes = match config_file.exists() {
-      true => {
-        let json = fs::read_to_string(&config_file).expect("Cannot read config file");
-        let data: HashMap<String, BoxInstance> =
-          serde_json::from_str(&json).expect("Cannot parse config file");
-        data
+      true => match fs::read_to_string(&config_file) {
+        Ok(it) => match toml::from_str::<HashMap<String, BoxInstance>>(&it) {
+          Ok(res) => res,
+          Err(err) => {
+            error!("Cannot parse config file. Error: {}", err.to_string());
+            std::process::exit(1);
+          },
+        },
+        Err(err) => {
+          error!("Cannot read config file. Error: {}", err.to_string());
+          std::process::exit(1);
+        },
       },
-      false => {
-        fs::create_dir_all(&config_dir).expect("Cannot create config file");
-        HashMap::new()
-      },
+      false => HashMap::new(),
     };
 
     Self {
@@ -71,32 +76,27 @@ impl Config {
 
   pub fn update_boxes(&mut self, key: String, value: BoxInstance) {
     self.boxes.insert(key.clone(), value);
-    if let Ok(..) = serde_json::to_writer(
-      &File::create(&self.config_file).expect("Can't save config file"),
-      &self.boxes,
-    ) {
-      info!(
-        "Config file has been update with new value for {} profile",
-        key
-      );
-    };
-  }
 
-  pub fn save_on_disk(self) {
-    if let Ok(..) = serde_json::to_writer(
-      &File::create(&self.config_file).expect("Cannot save config file"),
-      &self.boxes,
-    ) {
-      info!("Config file has been saved on disk");
+    match fs::write(&self.config_file, toml::to_string(&self.boxes).expect("")) {
+      Ok(..) => {
+        info!("Config file successfully update");
+      },
+      Err(e) => {
+        error!("Unable to save config file. Error: {}", e.to_string())
+      },
     };
   }
 }
 
 pub fn save_on_disk(config_file: PathBuf, boxes: HashMap<String, BoxInstance>) {
-  if let Ok(..) = serde_json::to_writer(
-    &File::create(config_file).expect("Cannot save config file"),
-    &boxes,
-  ) {};
+  match fs::write(config_file, toml::to_string(&boxes).expect("")) {
+    Ok(..) => {
+      info!("Config file successfully update");
+    },
+    Err(e) => {
+      error!("Unable to save config file. Error: {}", e.to_string())
+    },
+  };
 }
 
 pub fn default_config_arg() -> Vec<Arg<'static>> {

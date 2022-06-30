@@ -1,6 +1,6 @@
 [package]
 name = "aidbox-cli"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2021"
 authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
 license = "MIT/Apache-2.0"
@@ -44,6 +44,7 @@ rand = "0.8"
 webbrowser = "0.7.1"
 version-compare = "0.1"
 runas = "0.2.1"
+toml = "0.5.9"
 
 [dev-dependencies]
 proptest = "1.0.0"

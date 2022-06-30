@@ -35,7 +35,7 @@ pub async fn sub_matches(sub_matches: &ArgMatches) {
   match box_command {
     ("configure", sub_matches) => matches::configure(sub_matches).await,
     ("rm", sub_matches) => matches::rm_instance_config(sub_matches),
-    ("info", sub_matches) => matches::get_box_info(sub_matches),
+    ("info", sub_matches) => matches::get_box_info(sub_matches).await,
     ("list", sub_matches) => matches::instance_list(sub_matches).await,
     ("open", sub_matches) => matches::open_ui(sub_matches),
     ("execute-sql", sub_matches) => matches::execute_sql(sub_matches).await,

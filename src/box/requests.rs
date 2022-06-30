@@ -1,13 +1,13 @@
 use log::{error, info, warn};
 use regex::RegexSet;
 use reqwest::header::{ACCEPT, CONTENT_TYPE};
-use reqwest::Client;
+use reqwest::{Client, Response};
 use serde::Deserialize;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs;
-use std::fs::File;
+use std::future::Future;
 use std::path::PathBuf;
 
 use crate::config::BoxInstance;
@@ -184,7 +184,9 @@ impl BoxClient {
         }
       }
     }
-    if let Ok(..) = serde_json::to_writer(&File::create(target_path.to_str().unwrap())?, &symbols) {
+    if let Ok(..) =
+      serde_json::to_writer(&fs::File::create(target_path.to_str().unwrap())?, &symbols)
+    {
       info!("Symbols load has been finished");
     };
     Ok(symbols)
@@ -209,13 +211,7 @@ impl BoxClient {
       .basic_auth(&self.user, Some(&self.password))
       .send();
 
-    return match result.await {
-      Ok(it) => match it.status().as_u16() {
-        401 => Err("Access denied. Please check you credentials".to_string()),
-        _ => Ok(it.json().await.unwrap()),
-      },
-      Err(error) => Err(error.to_string()),
-    };
+    result_process(result).await
   }
 
   pub async fn psql(&self, data: String) -> Result<Value, String> {
@@ -229,13 +225,7 @@ impl BoxClient {
       .basic_auth(&self.user, Some(&self.password))
       .send();
 
-    return match result.await {
-      Ok(it) => match it.status().as_u16() {
-        401 => Err("Access denied. Please check you credentials".to_string()),
-        _ => Ok(it.json().await.unwrap()),
-      },
-      Err(error) => Err(error.to_string()),
-    };
+    result_process(result).await
   }
 
   pub async fn get_box_version(&self) -> Result<Value, String> {
@@ -246,9 +236,17 @@ impl BoxClient {
       .send();
 
     return match result.await {
-      Ok(it) => Ok(it.json().await.unwrap()),
+      Ok(it) => match it.status().as_u16() {
+        401 => Err("Access denied. Please check you credentials".to_string()),
+        403 => Err(format!(
+          "Please check Access Policy for client '{}'",
+          self.user
+        )),
+        _ => Ok(it.json().await.unwrap()),
+      },
+
       Err(err) => {
-        println!("{:#?}", err);
+        error!("Get box version error: {}", err.to_string());
         Err(
           "$version operation doesn't exist. Please update you aidbox on newer version".to_string(),
         )
@@ -306,6 +304,18 @@ impl BoxClient {
 
     Ok(result)
   }
+}
+
+async fn result_process(
+  result: impl Future<Output = Result<Response, reqwest::Error>> + Sized,
+) -> Result<Value, String> {
+  return match result.await {
+    Ok(it) => match it.status().as_u16() {
+      401 => Err("Access denied. Please check you credentials".to_string()),
+      _ => Ok(it.json().await.unwrap()),
+    },
+    Err(error) => Err(error.to_string()),
+  };
 }
 
 pub async fn create_box(config: BoxInstance) -> Result<BoxClient, reqwest::Error> {
