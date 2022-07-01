@@ -34,16 +34,13 @@ impl Config {
     let config_dir = PathBuf::from(matches.get_one::<String>("config").unwrap());
 
     if !config_dir.exists() {
-      match fs::create_dir_all(&config_dir) {
-        Err(err) => {
-          error!(
-            "Cannot create config dir by path '{}'. Error: {}",
-            config_dir.to_str().unwrap(),
-            err.to_string()
-          );
-          std::process::exit(1);
-        },
-        _ => {},
+      if let Err(err) = fs::create_dir_all(&config_dir) {
+        error!(
+          "Cannot create config dir by path '{}'. Error: {}",
+          config_dir.to_str().unwrap(),
+          err.to_string()
+        );
+        std::process::exit(1);
       }
     }
 
@@ -75,7 +72,7 @@ impl Config {
   }
 
   pub fn update_boxes(&mut self, key: String, value: BoxInstance) {
-    self.boxes.insert(key.clone(), value);
+    self.boxes.insert(key, value);
 
     match fs::write(&self.config_file, toml::to_string(&self.boxes).expect("")) {
       Ok(..) => {

@@ -56,7 +56,6 @@ dependencies = [
  "chrono",
  "clap",
  "clap_complete",
- "colorful",
  "console 0.15.0",
  "dialoguer",
  "dirs",
@@ -308,12 +307,6 @@ checksum = "5538cd660450ebeb4234cfecf8f2284b844ffc4c50531e66d584ad5b91293613"
 dependencies = [
  "os_str_bytes",
 ]
-
-[[package]]
-name = "colorful"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bca1619ff57dd7a56b58a8e25ef4199f123e78e503fe1653410350a1b98ae65"
 
 [[package]]
 name = "combine"

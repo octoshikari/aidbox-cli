@@ -6,11 +6,11 @@ use clap::{Arg, ArgMatches, Command, ValueHint};
 
 pub fn commands() -> Command<'static> {
   return Command::new("box")
-    .about("Interact with box instance")
+    .about("Interact with box")
     .arg_required_else_help(true)
     .args(default_config_arg())
     .subcommand(Command::new("configure").about("Initialize box config"))
-    .subcommand(Command::new("rm").about("Remove box instance config"))
+    .subcommand(Command::new("rm").about("Remove instance config"))
     .subcommand(Command::new("open").about("Open Aidbox UI"))
     .subcommand(
       Command::new("list")

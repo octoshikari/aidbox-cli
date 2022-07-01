@@ -9,7 +9,7 @@ mod self_update;
 use crate::md::app_to_md;
 use chrono::Local;
 use clap::{value_parser, Arg, ArgAction, Command};
-use clap_complete::{generate, Shell};
+use clap_complete::{generate, Generator, Shell};
 use human_panic::setup_panic;
 use log::Level;
 use std::io::Write;
@@ -81,12 +81,10 @@ async fn main() {
       fs::write("USAGE.md", markdown).expect("Unable to write file")
     },
     Some(("completion", sub_matches)) => {
-      if let Some(shell) = sub_matches.get_one::<Shell>("shell").copied() {
-        println!("Generating completion file for {}...", shell);
-        let app_name = app.get_name().to_string();
-
-        generate(shell, &mut app, app_name, &mut io::stdout());
-      };
+      if let Some(generator) = sub_matches.get_one::<Shell>("shell") {
+        eprintln!("Generating completion file for {}...", generator);
+        print_completions(*generator, &mut app);
+      }
     },
     Some(("docker-image", sub_matches)) => docker::docker_matches(sub_matches).await,
     Some(("generator", sub_matches)) => generator::sub_matches(sub_matches).await,
@@ -97,6 +95,10 @@ async fn main() {
     },
     _ => unreachable!(), // If all subcommands are defined above, anything else is unreachable!()
   }
+}
+
+fn print_completions<G: Generator>(gen: G, cmd: &mut Command) {
+  generate(gen, cmd, cmd.get_name().to_string(), &mut io::stdout());
 }
 
 fn level_enum(verbosity: i8) -> Option<Level> {
