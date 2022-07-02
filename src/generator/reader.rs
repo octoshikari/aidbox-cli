@@ -1088,7 +1088,6 @@ async fn symbol_read(
   Ok(None)
 }
 
-#[allow(mutable_borrow_reservation_conflict)]
 pub async fn read_schema(
   box_instance: BoxClient,
   cache: &mut Cache,

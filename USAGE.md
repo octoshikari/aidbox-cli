@@ -142,7 +142,7 @@ Arguments:
 
 ### box
 
-Interact with box instance
+Interact with box
 
 Arguments:
 
@@ -164,7 +164,7 @@ Arguments:
 
 ##### rm
 
-Remove box instance config
+Remove instance config
 
 Arguments:
 
