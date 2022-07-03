@@ -1,0 +1,32 @@
+.navbar-items{
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+}
+
+.navbar-item{
+    padding: .5rem 1rem;
+    /*background-color: #535bf2;*/
+}
+
+.navbar-item:hover{
+    background-color: #535bf2;
+    color: white;
+}
+
+.navbar-collapse{
+    height: 60px;
+
+
+}
+
+.navbar-collapse div{
+    border: 1px solid #535bf2 ;
+    margin: .5rem 1rem;
+    background-color:  #535bf2;
+    border-radius: .25rem;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+
+}
