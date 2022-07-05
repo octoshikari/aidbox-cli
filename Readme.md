@@ -3,6 +3,13 @@
 [![CI](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml/badge.svg?branch=main)](https://github.com/octoshikari/aidbox-cli/actions/workflows/ci.yaml)
 
 
+
+
+Our **MTTA** (Mean time to acknowledge) is around `one day`; 
+<!---->
+and our **TTR** (Time To Resolve) can vary from a `few days to a couple of weeks` depending on the number of issues.
+
+
 ## Install
 
 Available via npm
