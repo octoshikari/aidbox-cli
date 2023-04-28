@@ -1,0 +1,16 @@
+{
+  "rust-analyzer.checkOnSave.enable": true,
+  "rust-analyzer.checkOnSave.command": "clippy",
+  "editor.inlayHints.fontFamily": "Courier New",
+  "editor.inlayHints.fontSize": 11,
+
+  "workbench.colorCustomizations": {
+    "[Default Dark+]": {
+      "editorInlayHint.foreground": "#868686f0",
+      "editorInlayHint.background": "#3d3d3d48",
+
+      "editorInlayHint.typeForeground": "#fdb6fdf0",
+      "editorInlayHint.parameterForeground": "#fdb6fdf0"
+    }
+  }
+}

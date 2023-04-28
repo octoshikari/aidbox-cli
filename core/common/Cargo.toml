@@ -1,0 +1,15 @@
+[package]
+name = "tool-common"
+version = "0.4.4"
+edition = "2021"
+authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
+license = "MIT/Apache-2.0"
+homepage = "https://github.com/octoshikari/aidbox-tool"
+repository = "https://github.com/octoshikari/aidbox-tool"
+publish = false
+
+
+
+
+[dev-dependencies]
+proptest = "1.0.0"

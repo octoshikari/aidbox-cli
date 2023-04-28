@@ -1,0 +1,33 @@
+[package]
+name = "tool-generator"
+version = "0.4.4"
+edition = "2021"
+authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
+license = "MIT/Apache-2.0"
+homepage = "https://github.com/octoshikari/aidbox-tool"
+repository = "https://github.com/octoshikari/aidbox-tool"
+publish = false
+
+
+[dependencies]
+tool-config = {path = "../config"}
+tool-aidbox = {path = "../aidbox"}
+tool-common = {path = "../common"}
+serde = { version = "1.0", features = ["derive"] }
+chrono = { version = "0.4.23", features= ["serde"] }
+dirs = "4"
+toml = "0.5.10"
+serde_json = "1"
+tokio = {version = "1", features = ["rt", "macros", "rt-multi-thread"] }
+futures-core = "0.3"
+futures-util = "0.3"
+async-stream = "0.3"
+regex = "1.7"
+rand = "0.8.5"
+async-recursion = "1"
+dprint-plugin-typescript = "0.80"
+dprint-core = "0.60"
+itertools = "0.10.5"
+anyhow = "1.0"
+
+

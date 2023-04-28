@@ -1,0 +1,283 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - v*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test rust ${{ matrix.rust }} on ${{ matrix.os }}
+
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macOS-latest, windows-latest]
+        rust: [stable]
+
+        include:
+          - os: ubuntu-latest
+            sccache-path: /home/runner/.cache/sccache
+            rustc-wrapper: sccache
+          - os: macos-latest
+            sccache-path: /Users/runner/Library/Caches/Mozilla.sccache
+            rustc-wrapper: sccache
+          # - os: windows-latest
+          # rustc-wrapper:
+
+    env:
+      RUST_BACKTRACE: full
+      RUSTC_WRAPPER: ${{ matrix.rustc-wrapper }}
+      RUSTV: ${{ matrix.rust }}
+      SCCACHE_CACHE_SIZE: 2G
+      SCCACHE_DIR: ${{ matrix.sccache-path }}
+      # SCCACHE_RECACHE: 1 # Uncomment this to clear cache, then comment it back out
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install sccache (ubuntu-latest)
+        if: matrix.os == 'ubuntu-latest'
+        env:
+          LINK: https://github.com/mozilla/sccache/releases/download
+          SCCACHE_VERSION: v0.2.15
+        run: |
+          SCCACHE_FILE=sccache-$SCCACHE_VERSION-x86_64-unknown-linux-musl
+          mkdir -p $HOME/.local/bin
+          curl -L "$LINK/$SCCACHE_VERSION/$SCCACHE_FILE.tar.gz" | tar xz
+          mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
+          chmod a+x $HOME/.local/bin/sccache
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Install sccache (macos-latest)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew update
+          brew install sccache
+      - name: Install Rust ${{ matrix.rust }}
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.rust }}
+          profile: minimal
+          override: true
+      - name: Cache cargo registry
+        uses: actions/cache@v2
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Save sccache
+        if: matrix.os != 'windows-latest'
+        uses: actions/cache@v2
+        continue-on-error: false
+        with:
+          path: ${{ matrix.sccache-path }}
+          key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-sccache-
+      - name: Start sccache server
+        if: matrix.os != 'windows-latest'
+        run: sccache --start-server
+
+      # - name: Run tests
+      #   run: cargo test --verbose
+      - name: Build release
+        run: cargo build --verbose --release
+
+      - name: Build m1
+        if: matrix.os == 'macos-latest'
+        run: |
+          rustup target add aarch64-apple-darwin
+          cargo build --verbose --release --target=aarch64-apple-darwin
+
+      - name: Print sccache stats
+        if: matrix.os != 'windows-latest'
+        run: sccache --show-stats
+      - name: Stop sccache server
+        if: matrix.os != 'windows-latest'
+        run: sccache --stop-server || true
+
+      - name: Upload default binary
+        uses: actions/upload-artifact@v1
+        if: matrix.os != 'windows-latest'
+        with:
+          name: aidbox-tool-${{ matrix.os }}
+          path: target/release/aidbox-tool
+      - name: Upload  m1 binary
+        uses: actions/upload-artifact@v1
+        if: matrix.os == 'macos-latest'
+        with:
+          name: aidbox-tool-m1-${{ matrix.os }}
+          path: target/aarch64-apple-darwin/release/aidbox-tool
+      - name: Upload windows binary
+        uses: actions/upload-artifact@v1
+        if: matrix.os == 'windows-latest'
+        with:
+          name: aidbox-tool-${{ matrix.os }}
+          path: target/release/aidbox-tool.exe
+  notify:
+    name: Telegram notification
+    if: ${{ always() && !startsWith(github.event.ref, 'refs/tags/v')}}
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: send success telegram message
+        if: ${{ needs.build.result == 'success' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            ✅  ${{ github.actor }} created commit:  
+
+            📝  Commit message:   
+
+            ${{ github.event.commits[0].message }}  
+
+            🌐 See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
+
+      - name: send failure telegram message
+        if: ${{ needs.build.result == 'failure' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            ❌ ${{ github.actor }} created commit:  
+
+            📝 Commit message:   
+
+            ${{ github.event.commits[0].message }}  
+
+
+            🌐 See changes: https://github.com/${{ github.repository }}/commit/${{github.sha}}
+
+  release:
+    name: Release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.event.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v1
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          # Optionally strip `v` prefix
+          strip_v: false
+      - uses: actions/download-artifact@v1
+        with:
+          name: aidbox-tool-ubuntu-latest
+          path: dist/aidbox-tool-ubuntu-latest
+      - uses: actions/download-artifact@v1
+        with:
+          name: aidbox-tool-macOS-latest
+          path: dist/aidbox-tool-macOS-latest
+      - uses: actions/download-artifact@v1
+        with:
+          name: aidbox-tool-m1-macOS-latest
+          path: dist/aidbox-tool-m1-macOS-latest
+      - uses: actions/download-artifact@v1
+        with:
+          name: aidbox-tool-windows-latest
+          path: dist/aidbox-tool-windows-latest
+      - name: List release files
+        run: find dist/
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+      - name: Upload linux release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./dist/aidbox-tool-ubuntu-latest/aidbox-tool
+          asset_name: aidbox-tool-${{steps.tag.outputs.tag}}-linux-x86_64
+          asset_content_type: application/x-elf
+      - name: Upload macos release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./dist/aidbox-tool-macOS-latest/aidbox-tool
+          asset_name: aidbox-tool-${{steps.tag.outputs.tag}}-darwin-x86_64
+          asset_content_type: application/x-mach-binary
+      - name: Upload macos m1 release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./dist/aidbox-tool-m1-macOS-latest/aidbox-tool
+          asset_name: aidbox-tool-${{steps.tag.outputs.tag}}-darwin-aarch64
+          asset_content_type: application/x-mach-binary
+      - name: Upload windows release asset
+        uses: actions/upload-release-asset@v1.0.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }} # This pulls from the CREATE RELEASE step above, referencing it's ID to get its outputs object, which include a `upload_url`. See this blog post for more info: https://jasonet.co/posts/new-features-of-github-actions/#passing-data-to-future-steps
+          asset_path: ./dist/aidbox-tool-windows-latest/aidbox-tool.exe
+          asset_name: aidbox-tool-${{steps.tag.outputs.tag}}-windows-x86_64.exe
+          asset_content_type: application/vnd.microsoft.portable-executable
+  notify-release:
+    name: Telegram notification
+    if: ${{ always() && startsWith(github.event.ref, 'refs/tags/v')}}
+    needs: [release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        with:
+          # Optionally strip `v` prefix
+          strip_v: false
+      - name: send success telegram message
+        if: ${{ needs.release.result == 'success' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            ✅  ${{ github.actor }} created tag ${{github.ref}}:  
+
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tag/${{steps.tag.outputs.tag}}
+
+      - name: send failure telegram message
+        if: ${{ needs.release.result == 'failure' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            ❌ ${{ github.actor }} created tag ${{github.ref}}:  
+
+            🌐 See changes: https://github.com/${{ github.repository }}/releases/tag/${{steps.tag.outputs.tag}}

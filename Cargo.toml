@@ -1,0 +1,48 @@
+[workspace]
+members = ["core/config", "core/aidbox", "core/generator", "core/common"]
+
+
+[package]
+name = "aidbox-tool"
+version = "0.4.4"
+edition = "2021"
+authors = ["Alex Streltsov <funyloony@gmail.com>", "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
+license = "MIT/Apache-2.0"
+homepage = "https://github.com/octoshikari/aidbox-tool/blob/main/Readme.md"
+repository = "https://github.com/octoshikari/aidbox-tool"
+readme = "README.md"
+keywords = ["cli", "aidbox"]
+categories = ["command-line-utilities"]
+publish = false
+
+[[bin]]
+name = "aidbox-tool"
+path = "src/main.rs"
+doc = false
+
+[dependencies]
+tool-config = { path = "core/config" }
+tool-aidbox = { path = "core/aidbox" }
+tool-generator = { path = "core/generator" }
+tool-common = { path = "core/common" }
+clap = { version = "4", default-features = true, features = ["cargo", "env", "unicode", "wrap_help"] }
+clap_complete = "4"
+log = "0.4"
+env_logger = "0.10"
+serde = { version = "1.0" }
+serde_json = "1"
+chrono = { version = "0.4.23", features = ["serde"] }
+reqwest = { version = "0.11.13", features = ["json", "stream"] }
+tokio = { version = "1", features = ["rt", "macros", "rt-multi-thread"] }
+futures-core = "0.3"
+futures-util = "0.3"
+async-stream = "0.3"
+regex = "1.7"
+indicatif = "0.17.2"
+dialoguer = "0.10"
+human-panic = "1"
+console = "0.15"
+webbrowser = "0.8.4"
+toml = "0.5.10"
+itertools = "0.10"
+

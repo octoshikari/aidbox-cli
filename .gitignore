@@ -1,0 +1,10 @@
+node_modules
+.idea
+.cache
+.local-cache
+.test-cache
+aidbox-generated-types.ts
+aidbox-generated-types-old.ts
+target
+aidbox-types.ts
+.DS_STORE

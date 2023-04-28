@@ -1,0 +1,22 @@
+{
+    "name": "aidbox-tool-docs",
+    "private": true,
+    "scripts": {
+        "start": "pnpm dev",
+        "dev": "vitepress dev docs",
+        "build": "vitepress build docs",
+        "serve": "vitepress serve docs"
+    },
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@algolia/client-search": "^4.14.2",
+        "markdown-it-task-lists": "^2.1.1",
+        "vitepress": "1.0.0-alpha.19",
+        "vue": "^3.2.40"
+    },
+    "packageManager": "pnpm@7.9.3",
+    "devDependencies": {
+        "prettier": "^2.7.1"
+    }
+}

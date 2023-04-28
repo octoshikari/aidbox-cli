@@ -1,0 +1,17 @@
+[package]
+name = "tool-config"
+version = "0.4.4"
+edition = "2021"
+authors = ["Alex Streltsov <funyloony@gmail.com>" , "Mikhail Medveded <medvedevmichel@gmail.com>", "Gena Razmakhnin <gena.razmakhnin@gmail.com>"]
+license = "MIT/Apache-2.0"
+homepage = "https://github.com/octoshikari/aidbox-tool"
+repository = "https://github.com/octoshikari/aidbox-tool"
+publish = false
+
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4.23", features= ["serde"] }
+dirs = "4"
+toml = "0.5.10"
